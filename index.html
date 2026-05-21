@@ -327,6 +327,13 @@
           <button id="btn-speed-up" class="btn btn-small" title="Increase WPM"><i class="fa-solid fa-plus"></i> 25 WPM</button>
         </div>
 
+        <!-- Lyrics sync offset nudge (visible only in sync/YouTube mode) -->
+        <div id="lyrics-offset-control" class="speed-tweakers hidden" title="Nudge lyrics earlier or later to match the song">
+          <button id="btn-offset-minus" class="btn btn-small" style="color: var(--color-pink);" title="Words appear too late — shift earlier"><i class="fa-solid fa-backward-step"></i> -1s</button>
+          <span class="small-label" id="offset-display" style="color: var(--color-cyan);">Sync: 0s</span>
+          <button id="btn-offset-plus" class="btn btn-small" style="color: var(--color-cyan);" title="Words appear too early — shift later"><i class="fa-solid fa-forward-step"></i> +1s</button>
+        </div>
+
         <button id="btn-exit-game" class="btn btn-danger-outline"><i class="fa-solid fa-xmark"></i> Exit Session</button>
       </div>
     </section>

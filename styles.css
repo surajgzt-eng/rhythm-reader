@@ -2033,3 +2033,37 @@ input[type="text"]:focus, select:focus {
   }
 }
 
+/* === Piano Tiles–Style Genre Sections in Song Picker === */
+.genre-song-section {
+  margin-bottom: 12px;
+}
+
+.song-genre-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  padding: 6px 10px 4px;
+  border-left: 3px solid var(--color-cyan);
+  background: rgba(0, 240, 255, 0.04);
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 6px;
+}
+
+/* === Lyrics Offset Indicator Pulse === */
+#offset-display {
+  transition: color 0.3s ease;
+  font-weight: 700;
+  min-width: 70px;
+  text-align: center;
+}
+
+/* === Summary Screen: ensure it works without 'active' class (uses 'hidden') === */
+#summary-screen:not(.hidden) {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 20px;
+}

@@ -70,6 +70,7 @@ const gameState = {
   ytTimeBase: 0,
   localTimeBase: 0,
   needsSyncReset: true,
+  lyricsOffset: 0,           // manual offset in seconds (positive = show lyrics later)
   
   // Visuals & Gameplay Animation
   notes: [], // falling note coordinates
@@ -453,19 +454,44 @@ function setupUIEventListeners() {
   document.getElementById('btn-exit-game').addEventListener('click', exitSession);
   document.getElementById('btn-play-again').addEventListener('click', () => {
     document.getElementById('summary-screen').classList.add('hidden');
-    document.getElementById('setup-screen').classList.remove('active'); // resets WPM selection
-    document.getElementById('setup-screen').classList.add('active');
+    // FIX: setup-screen gets 'hidden' class added during launch — must remove it explicitly
+    const setupScreen = document.getElementById('setup-screen');
+    setupScreen.classList.remove('hidden');
+    setupScreen.classList.add('active');
     goToStep(1);
   });
   document.getElementById('btn-summary-gohome').addEventListener('click', () => {
     document.getElementById('summary-screen').classList.add('hidden');
-    document.getElementById('setup-screen').classList.add('active');
+    // FIX: same hidden-class fix for Home button
+    const setupScreen = document.getElementById('setup-screen');
+    setupScreen.classList.remove('hidden');
+    setupScreen.classList.add('active');
     goToStep(1);
   });
 
   // WPM Manual Adjustments in Game
   document.getElementById('btn-speed-up').addEventListener('click', () => adjustWPM(25));
   document.getElementById('btn-speed-down').addEventListener('click', () => adjustWPM(-25));
+
+  // Lyrics Sync Offset (nudge words earlier or later vs song playback)
+  function updateOffsetDisplay() {
+    const el = document.getElementById('offset-display');
+    if (el) {
+      const sign = gameState.lyricsOffset >= 0 ? '+' : '';
+      el.textContent = `Sync: ${sign}${gameState.lyricsOffset}s`;
+      el.style.color = gameState.lyricsOffset !== 0 ? 'var(--color-pink)' : 'var(--color-cyan)';
+    }
+  }
+  document.getElementById('btn-offset-plus').addEventListener('click', () => {
+    gameState.lyricsOffset = Math.round((gameState.lyricsOffset + 1) * 10) / 10;
+    gameState.needsSyncReset = true; // force re-calibration
+    updateOffsetDisplay();
+  });
+  document.getElementById('btn-offset-minus').addEventListener('click', () => {
+    gameState.lyricsOffset = Math.round((gameState.lyricsOffset - 1) * 10) / 10;
+    gameState.needsSyncReset = true;
+    updateOffsetDisplay();
+  });
 
   // Volume slider adjust
   document.getElementById('input-volume-slider').addEventListener('input', (e) => {
@@ -1291,6 +1317,19 @@ function launchGameSession() {
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('game-screen').classList.remove('hidden');
 
+  // Reset lyrics offset for this session
+  gameState.lyricsOffset = 0;
+  const offsetDisplay = document.getElementById('offset-display');
+  if (offsetDisplay) offsetDisplay.textContent = 'Sync: 0s';
+  const offsetControl = document.getElementById('lyrics-offset-control');
+  if (offsetControl) {
+    if (gameState.syncMode) {
+      offsetControl.classList.remove('hidden');
+    } else {
+      offsetControl.classList.add('hidden');
+    }
+  }
+
   // Update HUD — sync mode shows different labels
   const totalWordCount = gameState.syncMode ? gameState.syncedWordQueue.length : gameState.words.length;
   document.getElementById('hud-wpm').textContent = gameState.syncMode ? '\u266b SYNC' : gameState.wpm;
@@ -1513,27 +1552,32 @@ function startSyncLoop() {
     }
 
     const now = performance.now();
-    // Calibrate baseline if player time changed, or if reset is forced
-    if (gameState.needsSyncReset || playerTime !== gameState.lastYtTime) {
+    // --- FIX: Only recalibrate if forced reset OR if YouTube time jumped significantly (>0.1s diff)
+    // Previously this recalibrated EVERY frame (any float change), which destroyed the extrapolation.
+    const ytTimeDelta = Math.abs(playerTime - gameState.lastYtTime);
+    if (gameState.needsSyncReset || ytTimeDelta > 0.1) {
       gameState.lastYtTime = playerTime;
       gameState.ytTimeBase = playerTime;
       gameState.localTimeBase = now;
       gameState.needsSyncReset = false;
     }
 
-    // Estimate playback time: if PLAYING, add smooth elapsed duration
+    // Estimate playback time using high-res local clock interpolation between YT polls
     let estimatedTime = gameState.ytTimeBase;
     if (playerState === 1) { // PLAYING (state 1)
       const playbackRate = gameState.ytPlayer.getPlaybackRate() || 1;
       estimatedTime = gameState.ytTimeBase + ((now - gameState.localTimeBase) / 1000) * playbackRate;
     }
 
+    // Apply manual lyrics offset (positive = show words later in the song)
+    const adjustedTime = estimatedTime - gameState.lyricsOffset;
+
     const queue = gameState.syncedWordQueue;
 
-    // Find the active word index for the current estimated playback time
+    // Find the active word index using adjustedTime (offset-corrected)
     let activeIndex = -1;
     for (let i = 0; i < queue.length; i++) {
-      if (estimatedTime >= queue[i].time) {
+      if (adjustedTime >= queue[i].time) {
         activeIndex = i;
       } else {
         break; // queue is sorted by time
@@ -1671,8 +1715,12 @@ function exitSession() {
   if (confirm("Are you sure you want to end this training session?")) {
     stopSessionLoops();
     document.getElementById('game-screen').classList.add('hidden');
-    document.getElementById('setup-screen').classList.remove('hidden');
-    document.getElementById('setup-screen').classList.add('active');
+    document.getElementById('summary-screen').classList.add('hidden');
+    // FIX: setup-screen uses 'hidden' class during game — must REMOVE hidden, not just add active
+    const setupScreen = document.getElementById('setup-screen');
+    setupScreen.classList.remove('hidden');
+    setupScreen.classList.add('active');
+    goToStep(1);
   }
 }
 
@@ -2295,64 +2343,74 @@ async function loadTrendingYoutubeSongs() {
   const container = document.getElementById('youtube-preset-hits-container');
   if (!container) return;
 
+  // Immediately render the curated fallback list so the user sees songs at once
+  renderYoutubePresetHits(defaultYoutubePresetHits);
+
+  // Then attempt dynamic fetch in background to augment
   try {
-    const songs = await searchYoutubeVideos("latest hit songs 2026");
+    const songs = await searchYoutubeVideos('top hits songs 2025 lyrics');
     if (songs && songs.length > 0) {
-      renderYoutubePresetHits(songs);
-      return;
+      // Prepend dynamic results as a "Fresh Hits" category
+      const freshCategory = { genre: '\uD83D\uDD25 Fresh Hits', songs };
+      renderGenreSection(freshCategory, container, true);
     }
   } catch (err) {
-    console.warn("Dynamic trending YouTube songs fetch failed, using fallbacks:", err);
+    console.warn('Dynamic trending YouTube songs fetch failed, using curated fallbacks only:', err);
   }
-
-  renderYoutubePresetHits(defaultYoutubePresetHits);
 }
 
+// Curated song library with genre categories — chosen for high LRC sync coverage
 const defaultYoutubePresetHits = [
-  {
-    id: "4NRXx6U8ABQ",
-    title: "The Weeknd - Blinding Lights (Official Audio)",
-    channel: "The Weeknd",
-    thumb: "https://img.youtube.com/vi/4NRXx6U8ABQ/hqdefault.jpg"
-  },
-  {
-    id: "h5DZgfMB5ig",
-    title: "Daft Punk - Get Lucky (Official Audio) ft. Pharrell Williams",
-    channel: "Daft Punk",
-    thumb: "https://img.youtube.com/vi/h5DZgfMB5ig/hqdefault.jpg"
-  },
-  {
-    id: "DyDfgMOUUA8",
-    title: "Billie Eilish - bad guy (Official Audio)",
-    channel: "Billie Eilish",
-    thumb: "https://img.youtube.com/vi/DyDfgMOUUA8/hqdefault.jpg"
-  },
-  {
-    id: "jfKfPfyJRdk",
-    title: "Lofi Hip Hop Radio - Beats to Relax/Study to",
-    channel: "Lofi Girl",
-    thumb: "https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg"
-  },
-  {
-    id: "4xDzrJKXOOY",
-    title: "Synthwave Radio - Chill synth / retro beats",
-    channel: "Lofi Girl Synthwave",
-    thumb: "https://img.youtube.com/vi/4xDzrJKXOOY/hqdefault.jpg"
-  }
+  // ── POP ────────────────────────────────────────────────────────────────────
+  { genre: '\u{1F3B5} Pop', id: '4NRXx6U8ABQ', title: 'Blinding Lights', channel: 'The Weeknd', thumb: 'https://img.youtube.com/vi/4NRXx6U8ABQ/hqdefault.jpg' },
+  { genre: '\u{1F3B5} Pop', id: 'DyDfgMOUUA8', title: 'bad guy', channel: 'Billie Eilish', thumb: 'https://img.youtube.com/vi/DyDfgMOUUA8/hqdefault.jpg' },
+  { genre: '\u{1F3B5} Pop', id: 'kTJczUoc26U', title: 'Shape of You', channel: 'Ed Sheeran', thumb: 'https://img.youtube.com/vi/kTJczUoc26U/hqdefault.jpg' },
+  { genre: '\u{1F3B5} Pop', id: 'OPf0YbXqDm0', title: 'Mark Ronson - Uptown Funk ft. Bruno Mars', channel: 'Mark Ronson', thumb: 'https://img.youtube.com/vi/OPf0YbXqDm0/hqdefault.jpg' },
+  { genre: '\u{1F3B5} Pop', id: 'hLQl3WQQoQ0', title: 'Adele - Someone Like You', channel: 'Adele', thumb: 'https://img.youtube.com/vi/hLQl3WQQoQ0/hqdefault.jpg' },
+  { genre: '\u{1F3B5} Pop', id: 'fJ9rUzIMcZQ', title: 'Bohemian Rhapsody', channel: 'Queen', thumb: 'https://img.youtube.com/vi/fJ9rUzIMcZQ/hqdefault.jpg' },
+  // ── HIP-HOP / RAP ──────────────────────────────────────────────────────────
+  { genre: '\uD83C\uDFAE Hip-Hop', id: 'uelHwf8o7_U', title: 'Eminem - Lose Yourself', channel: 'Eminem', thumb: 'https://img.youtube.com/vi/uelHwf8o7_U/hqdefault.jpg' },
+  { genre: '\uD83C\uDFAE Hip-Hop', id: 'CEvDPmoswiU', title: 'Drake - One Dance', channel: 'Drake', thumb: 'https://img.youtube.com/vi/CEvDPmoswiU/hqdefault.jpg' },
+  { genre: '\uD83C\uDFAE Hip-Hop', id: '09R8_2nJtjg', title: 'Maroon 5 - Sugar', channel: 'Maroon 5', thumb: 'https://img.youtube.com/vi/09R8_2nJtjg/hqdefault.jpg' },
+  { genre: '\uD83C\uDFAE Hip-Hop', id: 'SC4xMk98Pdc', title: 'Post Malone - Sunflower', channel: 'Post Malone', thumb: 'https://img.youtube.com/vi/SC4xMk98Pdc/hqdefault.jpg' },
+  // ── INDIE / ROCK ───────────────────────────────────────────────────────────
+  { genre: '\uD83C\uDF1F Indie', id: 'pBkHLP7VVDE', title: 'Imagine Dragons - Radioactive', channel: 'Imagine Dragons', thumb: 'https://img.youtube.com/vi/pBkHLP7VVDE/hqdefault.jpg' },
+  { genre: '\uD83C\uDF1F Indie', id: 'QjvzCTqkBDQ', title: 'Coldplay - Yellow', channel: 'Coldplay', thumb: 'https://img.youtube.com/vi/QjvzCTqkBDQ/hqdefault.jpg' },
+  { genre: '\uD83C\uDF1F Indie', id: 'S6IIgBMfG7Q', title: 'Arctic Monkeys - Do I Wanna Know', channel: 'Arctic Monkeys', thumb: 'https://img.youtube.com/vi/S6IIgBMfG7Q/hqdefault.jpg' },
+  { genre: '\uD83C\uDF1F Indie', id: 'YqeW9_5kURI', title: 'Linkin Park - Numb', channel: 'Linkin Park', thumb: 'https://img.youtube.com/vi/YqeW9_5kURI/hqdefault.jpg' },
+  // ── CHILL / LOFI ───────────────────────────────────────────────────────────
+  { genre: '\u2728 Chill', id: 'jfKfPfyJRdk', title: 'Lofi Hip Hop Radio - Beats to Relax/Study to', channel: 'Lofi Girl', thumb: 'https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg' },
+  { genre: '\u2728 Chill', id: '4xDzrJKXOOY', title: 'Synthwave Radio - Chill Retro Beats', channel: 'Lofi Girl Synthwave', thumb: 'https://img.youtube.com/vi/4xDzrJKXOOY/hqdefault.jpg' },
+  { genre: '\u2728 Chill', id: 'h5DZgfMB5ig', title: 'Get Lucky ft. Pharrell Williams', channel: 'Daft Punk', thumb: 'https://img.youtube.com/vi/h5DZgfMB5ig/hqdefault.jpg' },
 ];
 
-function renderYoutubePresetHits(songs) {
-  const container = document.getElementById('youtube-preset-hits-container');
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
+// Build genre → songs map for grouped rendering
+function groupSongsByGenre(songs) {
+  const map = new Map();
   songs.forEach(song => {
+    const genre = song.genre || '\uD83C\uDFB5 Songs';
+    if (!map.has(genre)) map.set(genre, []);
+    map.get(genre).push(song);
+  });
+  return map;
+}
+
+function renderGenreSection(genreData, container, prepend = false) {
+  // genreData = { genre: string, songs: [{id, title, channel, thumb}] }
+  const section = document.createElement('div');
+  section.className = 'genre-song-section';
+
+  const genreLabel = document.createElement('h5');
+  genreLabel.className = 'song-genre-label';
+  genreLabel.textContent = genreData.genre;
+  section.appendChild(genreLabel);
+
+  genreData.songs.forEach(song => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'wizard-option-btn';
     btn.dataset.videoId = song.id;
-    
+
     btn.innerHTML = `
       <div class="option-thumbnail">
         <img src="${song.thumb}" alt="thumbnail" onerror="this.src='https://img.youtube.com/vi/${song.id}/hqdefault.jpg'">
@@ -2362,36 +2420,48 @@ function renderYoutubePresetHits(songs) {
         <span>${escapeHTML(song.channel)}</span>
       </div>
     `;
-    
+
     btn.addEventListener('click', () => {
       gameState.musicSource = 'youtube';
-      selectYoutubeVideo({
-        id: song.id,
-        title: song.title,
-        channel: song.channel,
-        thumb: song.thumb
-      });
-      
+      selectYoutubeVideo({ id: song.id, title: song.title, channel: song.channel, thumb: song.thumb });
       document.querySelectorAll('#wizard-pane-2 .wizard-option-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('custom-search-container').classList.add('hidden');
-      
-      // Auto-advance
       setTimeout(() => goToStep(3), 250);
     });
-    
-    container.appendChild(btn);
+
+    section.appendChild(btn);
   });
 
-  // Auto-select the first trending song by default if no selection exists
+  if (prepend && container.firstChild) {
+    container.insertBefore(section, container.firstChild);
+  } else {
+    container.appendChild(section);
+  }
+}
+
+function renderYoutubePresetHits(songs) {
+  const container = document.getElementById('youtube-preset-hits-container');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  // Check if songs have genre property (curated list) or are flat (dynamic search results)
+  const hasGenres = songs.some(s => s.genre);
+  if (hasGenres) {
+    const genreMap = groupSongsByGenre(songs);
+    genreMap.forEach((genreSongs, genre) => {
+      renderGenreSection({ genre, songs: genreSongs }, container);
+    });
+  } else {
+    // Dynamic search results — render as flat list under a single label
+    renderGenreSection({ genre: '\uD83D\uDD0D Search Results', songs }, container);
+  }
+
+  // Auto-select the first song by default if no selection exists
   if (gameState.youtubeSelectedVideo === null && songs.length > 0) {
     const firstSong = songs[0];
-    selectYoutubeVideo({
-      id: firstSong.id,
-      title: firstSong.title,
-      channel: firstSong.channel,
-      thumb: firstSong.thumb
-    });
+    selectYoutubeVideo({ id: firstSong.id, title: firstSong.title, channel: firstSong.channel, thumb: firstSong.thumb });
   }
 }
 
