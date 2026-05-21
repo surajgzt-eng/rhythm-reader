@@ -57,13 +57,13 @@ This static site uses No-Code payment checkouts to ensure security without expos
 
 To publish this website online 100% free:
 
-1.  Create a new **public** repository named `rhythm-reader` on your GitHub account (`suraj-gzt`).
+1.  Create a new **public** repository named `rhythm-reader` on your GitHub account (`surajgzt-eng`).
 2.  Run the following commands in the terminal of this folder to push the code:
     ```bash
-    git remote add origin https://github.com/suraj-gzt/rhythm-reader.git
+    git remote add origin https://github.com/surajgzt-eng/rhythm-reader.git
     git push -u origin main
     ```
 3.  On your GitHub repository page: Go to **Settings** -> **Pages**.
 4.  Set Build/Deployment source to **Deploy from a branch**.
 5.  Select **main** branch, `/ (root)` folder, and click **Save**.
-6.  In a few minutes, your game is online at: `https://suraj-gzt.github.io/rhythm-reader/`!
+6.  In a few minutes, your game is online at: `https://surajgzt-eng.github.io/rhythm-reader/`!

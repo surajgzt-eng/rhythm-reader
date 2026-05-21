@@ -1415,7 +1415,7 @@ ${gameState.mode === 'active' ? `* **Rhythm Accuracy:** ${accuracy}% | **Score:*
 
 Improve your reading focus, vocabulary retention, and reading speed using falling lanes and synthesized music beats!
 
-Play it free on GitHub Pages: https://suraj-gzt.github.io/rhythm-reader/`;
+Play it free on GitHub Pages: https://surajgzt-eng.github.io/rhythm-reader/`;
 
   navigator.clipboard.writeText(shareText).then(() => {
     alert("Reddit Share Card markdown copied to clipboard! Paste it on Reddit communities like r/speedreading, r/selfimprovement, or r/indiegames.");
