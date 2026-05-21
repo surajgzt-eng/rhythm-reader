@@ -1569,45 +1569,48 @@ input[type="text"]:focus, select:focus {
 
 /* --- 12. YouTube Search & Floating Player Integration --- */
 
-/* Music source tabs styling */
-.music-source-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
+/* Soundtrack Section Titles and Area styling */
+.soundtrack-scroll-area {
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-top: 15px;
 }
 
-.source-tab {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.soundtrack-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--text-muted);
-  padding: 10px;
-  border-radius: 6px;
-  font-family: var(--font-main);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 18px 0 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 6px;
+}
+
+.soundtrack-section-title i {
+  color: var(--color-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+}
+
+.loading-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: var(--transition-smooth);
+  gap: 10px;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
 }
 
-.source-tab:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-}
-
-.source-tab.active {
-  background: rgba(0, 240, 255, 0.08);
-  border-color: var(--color-cyan);
-  color: #fff;
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
-}
-
-.music-source-section {
-  transition: opacity 0.3s ease;
+.loading-placeholder i {
+  color: var(--color-cyan);
 }
 
 /* YouTube search layout */
@@ -1644,6 +1647,24 @@ input[type="text"]:focus, select:focus {
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+.option-thumbnail {
+  width: 50px;
+  height: 38px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.option-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .selected-video-card .video-info {

@@ -138,16 +138,12 @@
         <!-- Step 2: Soundtrack Selection -->
         <div class="wizard-pane" id="wizard-pane-2">
           <h3 class="wizard-pane-title"><i class="fa-solid fa-music"></i> Choose Background Soundtrack</h3>
-          <p class="wizard-pane-desc">Listen to real-time procedural synthesizers or stream from YouTube:</p>
+          <p class="wizard-pane-desc">Listen to real-time procedural synthesizers or stream latest hits directly from YouTube:</p>
 
-          <div class="music-source-tabs">
-            <button class="source-tab active" id="tab-music-presets" type="button"><i class="fa-solid fa-radio"></i> Built-in Beats</button>
-            <button class="source-tab" id="tab-music-youtube" type="button"><i class="fa-brands fa-youtube"></i> YouTube Song</button>
-          </div>
-
-          <!-- Section A: Built-in Presets -->
-          <div id="section-music-presets" class="music-source-section">
-            <div class="preset-vertical-list mt-3">
+          <div class="soundtrack-scroll-area">
+            <!-- Part A: Procedural Synth Beats -->
+            <h4 class="soundtrack-section-title"><i class="fa-solid fa-wave-square"></i> Procedural Beats (No internet required)</h4>
+            <div class="preset-vertical-list">
               <button class="wizard-option-btn active" data-track="synthwave">
                 <div class="option-icon"><i class="fa-solid fa-radio"></i></div>
                 <div class="option-text">
@@ -169,44 +165,51 @@
                   <span>Slow 70 BPM deep cosmic pads</span>
                 </div>
               </button>
-              <button class="wizard-option-btn" data-track="custom" id="btn-option-custom-audio">
-                <div class="option-icon"><i class="fa-solid fa-file-audio"></i></div>
+            </div>
+
+            <!-- Part B: Dynamic Latest YouTube Hits -->
+            <h4 class="soundtrack-section-title mt-4"><i class="fa-brands fa-youtube"></i> Trending YouTube Hits</h4>
+            <div id="youtube-preset-hits-container" class="preset-vertical-list">
+              <div class="loading-placeholder">
+                <i class="fa-solid fa-spinner fa-spin"></i> Loading latest hits...
+              </div>
+            </div>
+
+            <!-- Part C: Custom YouTube Search (Gated) -->
+            <h4 class="soundtrack-section-title mt-4"><i class="fa-solid fa-magnifying-glass"></i> Custom Audio</h4>
+            <div class="preset-vertical-list">
+              <button class="wizard-option-btn" data-track="custom-search" id="btn-option-custom-search">
+                <div class="option-icon"><i class="fa-solid fa-magnifying-glass-music"></i></div>
                 <div class="option-text">
-                  <strong>Upload Local MP3 Track</strong>
-                  <span>Upload and listen to your own audio files</span>
+                  <strong>Search Custom YouTube Song</strong>
+                  <span>Search by title or paste any direct YouTube URL</span>
                 </div>
               </button>
             </div>
-            
-            <div class="file-upload-wrapper mt-3 hidden" id="div-upload-custom-audio-container">
-              <input type="file" id="input-custom-audio" accept="audio/*" style="display: none;">
-              <span id="lbl-upload-filename" class="custom-audio-filename"></span>
-            </div>
-          </div>
 
-          <!-- Section B: YouTube Search -->
-          <div id="section-music-youtube" class="music-source-section hidden">
-            <div class="youtube-search-wrapper mt-3">
+            <!-- Custom YouTube Search Bar container (revealed on click if unlocked) -->
+            <div id="custom-search-container" class="youtube-search-wrapper mt-3 hidden">
               <div class="search-input-group">
-                <input type="text" id="input-yt-search" placeholder="Search song title or paste YouTube link...">
+                <input type="text" id="input-yt-search" placeholder="Enter song title or paste YouTube link...">
                 <button id="btn-yt-search" class="btn btn-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
               </div>
               
-              <!-- Active Selected Video Box -->
-              <div id="selected-yt-video-card" class="selected-video-card hidden">
-                <img id="selected-yt-thumb" src="" alt="Thumbnail">
-                <div class="video-info">
-                  <span class="video-label">Selected Track:</span>
-                  <span id="selected-yt-title" class="video-title">No song selected</span>
-                  <span id="selected-yt-channel" class="video-channel"></span>
-                </div>
-                <button id="btn-clear-yt-selection" class="btn-clear-selection" type="button"><i class="fa-solid fa-xmark"></i></button>
-              </div>
-
               <!-- Search Results Box -->
               <div id="yt-search-results" class="yt-search-results-container hidden">
                 <!-- Video items will be injected here -->
               </div>
+            </div>
+
+            <!-- Active Selected Video Box (shows if a YouTube track is active) -->
+            <div id="selected-yt-video-card" class="selected-video-card mt-3 hidden">
+              <img id="selected-yt-thumb" src="" alt="Thumbnail">
+              <div class="video-info">
+                <span class="video-label">Selected YouTube Track:</span>
+                <span id="selected-yt-title" class="video-title">No song selected</span>
+                <span id="selected-yt-channel" class="video-channel"></span>
+                <span id="selected-yt-lyrics-status" class="video-lyrics-status" style="font-size: 0.7rem; margin-top: 2px;"></span>
+              </div>
+              <button id="btn-clear-yt-selection" class="btn-clear-selection" type="button"><i class="fa-solid fa-xmark"></i></button>
             </div>
           </div>
 
@@ -261,6 +264,12 @@
           <span class="hud-label">LAP SECONDS</span>
           <span id="hud-timer" class="hud-value">30s</span>
         </div>
+      </div>
+
+      <!-- Currently Playing / Reading Info Banner -->
+      <div id="game-reading-banner" class="game-reading-banner" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; background: rgba(0, 240, 255, 0.03); border: 1px solid rgba(0, 240, 255, 0.1); border-radius: 6px; padding: 6px 12px; width: fit-content; margin-left: auto; margin-right: auto; max-width: 90%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+        <span class="reading-banner-label" style="text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; font-size: 0.7rem;"><i class="fa-solid fa-music"></i> Now Reading:</span>
+        <span id="game-reading-title" class="reading-banner-title text-cyan" style="font-weight: 600; color: var(--color-cyan);"></span>
       </div>
 
       <!-- RSVP Display Container -->

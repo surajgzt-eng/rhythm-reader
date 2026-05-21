@@ -58,6 +58,8 @@ const gameState = {
   synthTrack: 'synthwave',
   musicSource: 'presets',
   youtubeSelectedVideo: null,
+  lyrics: null,
+  lyricsSource: null,
   ytPlayer: null,
   ytPlayerReady: false,
   
@@ -85,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateTrialStatusUI();
   initVisualizer();
   initYouTubeAPI();
+  loadTrendingYoutubeSongs();
 });
 
 // Load configs & settings
@@ -255,41 +258,28 @@ function setupUIEventListeners() {
   document.querySelectorAll('.wizard-option-btn[data-track]').forEach(btn => {
     btn.addEventListener('click', () => {
       const track = btn.dataset.track;
-      if (track === 'custom') {
+      if (track === 'custom-search') {
         if (!isPremiumOrDay1()) {
           openModal('modal-subscription');
           return;
         }
-        document.querySelectorAll('.wizard-option-btn[data-track]').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#wizard-pane-2 .wizard-option-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        gameState.synthTrack = 'custom';
-        document.getElementById('div-upload-custom-audio-container').classList.remove('hidden');
-        document.getElementById('input-custom-audio').click();
+        document.getElementById('custom-search-container').classList.remove('hidden');
       } else {
-        document.querySelectorAll('.wizard-option-btn[data-track]').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#wizard-pane-2 .wizard-option-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        gameState.musicSource = 'presets';
         gameState.synthTrack = track;
-        document.getElementById('div-upload-custom-audio-container').classList.add('hidden');
+        document.getElementById('custom-search-container').classList.add('hidden');
+        // Clear active YouTube selections
+        gameState.youtubeSelectedVideo = null;
+        gameState.lyrics = null;
+        document.getElementById('selected-yt-video-card').classList.add('hidden');
         // Auto-advance
         setTimeout(() => goToStep(3), 250);
       }
     });
-  });
-
-  // Custom Audio Uploader
-  document.getElementById('input-custom-audio').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      document.getElementById('lbl-upload-filename').textContent = file.name;
-      const objectURL = URL.createObjectURL(file);
-      if (gameState.customAudio) {
-        gameState.customAudio.pause();
-      }
-      gameState.customAudio = new Audio(objectURL);
-      gameState.customAudio.volume = gameState.synthVolume;
-      // Auto-advance
-      setTimeout(() => goToStep(3), 250);
-    }
   });
 
   // WPM Slider Adjust
@@ -451,27 +441,7 @@ function setupUIEventListeners() {
   document.getElementById('btn-search-user').addEventListener('click', searchUserSubscription);
   document.getElementById('btn-save-user-sub').addEventListener('click', saveManualUserSubscription);
 
-  // YouTube Music Tab & Search event listeners
-  const tabPresets = document.getElementById('tab-music-presets');
-  const tabYoutube = document.getElementById('tab-music-youtube');
-  const secPresets = document.getElementById('section-music-presets');
-  const secYoutube = document.getElementById('section-music-youtube');
 
-  tabPresets.addEventListener('click', () => {
-    tabPresets.classList.add('active');
-    tabYoutube.classList.remove('active');
-    secPresets.classList.remove('hidden');
-    secYoutube.classList.add('hidden');
-    gameState.musicSource = 'presets';
-  });
-
-  tabYoutube.addEventListener('click', () => {
-    tabYoutube.classList.add('active');
-    tabPresets.classList.remove('active');
-    secYoutube.classList.remove('hidden');
-    secPresets.classList.add('hidden');
-    gameState.musicSource = 'youtube';
-  });
 
   const btnSearch = document.getElementById('btn-yt-search');
   const inputSearch = document.getElementById('input-yt-search');
@@ -488,6 +458,8 @@ function setupUIEventListeners() {
 
   document.getElementById('btn-clear-yt-selection').addEventListener('click', () => {
     gameState.youtubeSelectedVideo = null;
+    gameState.lyrics = null;
+    gameState.lyricsSource = null;
     document.getElementById('selected-yt-video-card').classList.add('hidden');
   });
 
@@ -1044,15 +1016,51 @@ function launchGameSession() {
   
   // Read configured inputs
   let selectedText = "";
-  const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
-  const customTextArea = document.getElementById('textarea-custom-text');
-  
-  if (presetBtn && presetBtn.dataset.preset === 'custom') {
-    selectedText = customTextArea.value.trim() || textPresets.scifi;
-  } else if (presetBtn) {
-    selectedText = textPresets[presetBtn.dataset.preset];
+  let readingTitle = "";
+
+  if (gameState.musicSource === 'youtube') {
+    if (gameState.lyrics) {
+      selectedText = gameState.lyrics;
+      readingTitle = `"${gameState.youtubeSelectedVideo.title}" (Lyrics)`;
+    } else {
+      // Fallback
+      const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
+      const customTextArea = document.getElementById('textarea-custom-text');
+      if (presetBtn && presetBtn.dataset.preset === 'custom') {
+        selectedText = customTextArea.value.trim() || textPresets.scifi;
+        readingTitle = `Custom Text (Lyrics not found for "${gameState.youtubeSelectedVideo.title}")`;
+      } else if (presetBtn) {
+        selectedText = textPresets[presetBtn.dataset.preset];
+        readingTitle = `${presetBtn.querySelector('strong')?.textContent || 'Preset'} (Lyrics not found)`;
+      } else {
+        selectedText = textPresets.scifi;
+        readingTitle = `Sci-Fi (Lyrics not found)`;
+      }
+    }
   } else {
-    selectedText = textPresets.scifi;
+    const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
+    const customTextArea = document.getElementById('textarea-custom-text');
+    if (presetBtn && presetBtn.dataset.preset === 'custom') {
+      selectedText = customTextArea.value.trim() || textPresets.scifi;
+      readingTitle = `Custom Text`;
+    } else if (presetBtn) {
+      selectedText = textPresets[presetBtn.dataset.preset];
+      readingTitle = presetBtn.querySelector('strong')?.textContent || 'Preset';
+    } else {
+      selectedText = textPresets.scifi;
+      readingTitle = `Sci-Fi Story`;
+    }
+    
+    // Add procedural track context
+    const activeTrackBtn = document.querySelector('#wizard-pane-2 .wizard-option-btn.active');
+    const trackName = activeTrackBtn ? (activeTrackBtn.querySelector('strong')?.textContent || 'Procedural Beats') : 'Procedural Beats';
+    readingTitle = `${readingTitle} (${trackName})`;
+  }
+
+  // Update Game Reading Title UI
+  const readingTitleEl = document.getElementById('game-reading-title');
+  if (readingTitleEl) {
+    readingTitleEl.textContent = readingTitle;
   }
 
   // Parse text
@@ -1632,11 +1640,13 @@ function displaySearchResults(videos) {
 
 function selectYoutubeVideo(video) {
   gameState.youtubeSelectedVideo = video;
+  gameState.musicSource = 'youtube';
   
   const selectedCard = document.getElementById('selected-yt-video-card');
   const selectedThumb = document.getElementById('selected-yt-thumb');
   const selectedTitle = document.getElementById('selected-yt-title');
   const selectedChannel = document.getElementById('selected-yt-channel');
+  const lyricsStatus = document.getElementById('selected-yt-lyrics-status');
   
   selectedThumb.src = video.thumb;
   selectedThumb.onerror = function() { this.src = `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`; };
@@ -1644,4 +1654,210 @@ function selectYoutubeVideo(video) {
   selectedChannel.textContent = video.channel;
   
   selectedCard.classList.remove('hidden');
+  
+  // Set the search custom option as active if the selected video isn't one of the rendered preset buttons
+  let isPreset = false;
+  document.querySelectorAll('#youtube-preset-hits-container .wizard-option-btn').forEach(b => {
+    if (b.dataset.videoId === video.id) {
+      b.classList.add('active');
+      isPreset = true;
+    } else {
+      b.classList.remove('active');
+    }
+  });
+
+  if (!isPreset) {
+    document.querySelectorAll('#wizard-pane-2 .wizard-option-btn').forEach(b => {
+      if (b.dataset.track === 'custom-search') {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+  } else {
+    const customSearchBtn = document.getElementById('btn-option-custom-search');
+    if (customSearchBtn) customSearchBtn.classList.remove('active');
+  }
+
+  if (lyricsStatus) {
+    lyricsStatus.style.color = 'var(--color-cyan)';
+    lyricsStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching song lyrics...';
+  }
+  
+  fetchLyricsForVideo(video).then(() => {
+    if (lyricsStatus) {
+      if (gameState.lyrics) {
+        lyricsStatus.style.color = '#10b981'; // Green
+        lyricsStatus.innerHTML = `<i class="fa-solid fa-circle-check"></i> Lyrics synchronized & loaded!`;
+      } else {
+        lyricsStatus.style.color = '#f59e0b'; // Amber
+        lyricsStatus.innerHTML = `<i class="fa-solid fa-circle-info"></i> Lyrics not found. Defaulting to selected text.`;
+      }
+    }
+  });
+}
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function cleanSongTitleForLyrics(title) {
+  if (!title) return '';
+  return title
+    .replace(/\(Official\s*(Video|Audio|Music\s*Video|Lyrics|Lyric\s*Video)?\)/gi, '')
+    .replace(/\[Official\s*(Video|Audio|Music\s*Video|Lyrics|Lyric\s*Video)?\]/gi, '')
+    .replace(/\(feat\..*?\)/gi, '')
+    .replace(/\[feat\..*?\]/gi, '')
+    .replace(/\(ft\..*?\)/gi, '')
+    .replace(/\[ft\..*?\]/gi, '')
+    .replace(/\(Lyrical\)/gi, '')
+    .replace(/\bvideo\b/gi, '')
+    .replace(/\baudio\b/gi, '')
+    .replace(/\blyrics\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function fetchLyricsForVideo(video) {
+  const cleanTitle = cleanSongTitleForLyrics(video.title);
+  const query = `${cleanTitle} ${video.channel || ''}`.trim();
+  
+  gameState.lyrics = null;
+  gameState.lyricsSource = null;
+  
+  try {
+    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error("Lyrics API search failed");
+    const data = await res.json();
+    
+    if (data && data.length > 0) {
+      const match = data.find(item => item.plainLyrics);
+      if (match) {
+        gameState.lyrics = match.plainLyrics;
+        gameState.lyricsSource = `${match.artistName} - ${match.trackName}`;
+        console.log("Lyrics fetched via primary query:", gameState.lyricsSource);
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Primary lyrics search failed:", err);
+  }
+  
+  // Secondary search using only title
+  try {
+    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`);
+    if (!res.ok) throw new Error("Lyrics API secondary search failed");
+    const data = await res.json();
+    
+    if (data && data.length > 0) {
+      const match = data.find(item => item.plainLyrics);
+      if (match) {
+        gameState.lyrics = match.plainLyrics;
+        gameState.lyricsSource = `${match.artistName} - ${match.trackName}`;
+        console.log("Lyrics fetched via secondary query:", gameState.lyricsSource);
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Secondary lyrics search failed:", err);
+  }
+}
+
+async function loadTrendingYoutubeSongs() {
+  const container = document.getElementById('youtube-preset-hits-container');
+  if (!container) return;
+
+  try {
+    const songs = await searchYoutubeVideos("latest hit songs 2026");
+    if (songs && songs.length > 0) {
+      renderYoutubePresetHits(songs);
+      return;
+    }
+  } catch (err) {
+    console.warn("Dynamic trending YouTube songs fetch failed, using fallbacks:", err);
+  }
+
+  renderYoutubePresetHits(defaultYoutubePresetHits);
+}
+
+const defaultYoutubePresetHits = [
+  {
+    id: "jfKfPfyJRdk",
+    title: "Lofi Hip Hop Radio - Beats to Relax/Study to",
+    channel: "Lofi Girl",
+    thumb: "https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg"
+  },
+  {
+    id: "4NRXx6U8ABQ",
+    title: "The Weeknd - Blinding Lights (Official Audio)",
+    channel: "The Weeknd",
+    thumb: "https://img.youtube.com/vi/4NRXx6U8ABQ/hqdefault.jpg"
+  },
+  {
+    id: "h5DZgfMB5ig",
+    title: "Daft Punk - Get Lucky (Official Audio) ft. Pharrell Williams",
+    channel: "Daft Punk",
+    thumb: "https://img.youtube.com/vi/h5DZgfMB5ig/hqdefault.jpg"
+  },
+  {
+    id: "4xDzrJKXOOY",
+    title: "Synthwave Radio - Chill synth / retro beats",
+    channel: "Lofi Girl Synthwave",
+    thumb: "https://img.youtube.com/vi/4xDzrJKXOOY/hqdefault.jpg"
+  },
+  {
+    id: "DyDfgMOUUA8",
+    title: "Billie Eilish - bad guy (Official Audio)",
+    channel: "Billie Eilish",
+    thumb: "https://img.youtube.com/vi/DyDfgMOUUA8/hqdefault.jpg"
+  }
+];
+
+function renderYoutubePresetHits(songs) {
+  const container = document.getElementById('youtube-preset-hits-container');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  songs.forEach(song => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'wizard-option-btn';
+    btn.dataset.videoId = song.id;
+    
+    btn.innerHTML = `
+      <div class="option-thumbnail">
+        <img src="${song.thumb}" alt="thumbnail" onerror="this.src='https://img.youtube.com/vi/${song.id}/hqdefault.jpg'">
+      </div>
+      <div class="option-text">
+        <strong>${escapeHTML(song.title)}</strong>
+        <span>${escapeHTML(song.channel)}</span>
+      </div>
+    `;
+    
+    btn.addEventListener('click', () => {
+      gameState.musicSource = 'youtube';
+      selectYoutubeVideo({
+        id: song.id,
+        title: song.title,
+        channel: song.channel,
+        thumb: song.thumb
+      });
+      
+      document.querySelectorAll('#wizard-pane-2 .wizard-option-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('custom-search-container').classList.add('hidden');
+      
+      // Auto-advance
+      setTimeout(() => goToStep(3), 250);
+    });
+    
+    container.appendChild(btn);
+  });
 }
