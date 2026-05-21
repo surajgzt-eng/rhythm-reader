@@ -1,0 +1,22 @@
+{
+  "name": "Rhythm Reader",
+  "short_name": "RhythmReader",
+  "description": "Gamified Speed Reading & Rhythm Trainer synced to music.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#08090e",
+  "theme_color": "#08090e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

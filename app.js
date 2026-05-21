@@ -66,13 +66,24 @@ const gameState = {
   syncPoller: null,          // requestAnimationFrame ID for sync loop
   ytPlayer: null,
   ytPlayerReady: false,
+  lastYtTime: -1,
+  ytTimeBase: 0,
+  localTimeBase: 0,
+  needsSyncReset: true,
   
   // Visuals & Gameplay Animation
   notes: [], // falling note coordinates
   animationFrameId: null,
   noteSpeed: 3.5, // vertical falling speed factor
   targetLineY: 215, // target hit baseline relative height
-  orpColor: '#ff007f'
+  orpColor: '#ff007f',
+  stats: {
+    lifetimeWords: 0,
+    lifetimeSessions: 0,
+    peakWPM: 0,
+    lifetimeTimeSeconds: 0,
+    history: []
+  }
 };
 
 // Preset Texts
@@ -92,6 +103,43 @@ document.addEventListener('DOMContentLoaded', () => {
   initVisualizer();
   initYouTubeAPI();
   loadTrendingYoutubeSongs();
+
+  // Register PWA Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker registered successfully!', reg.scope))
+      .catch(err => console.error('Service Worker registration failed:', err));
+  }
+
+  // PWA Install Prompt handling
+  let deferredPrompt;
+  const btnPwaInstall = document.getElementById('btn-pwa-install');
+  
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (btnPwaInstall) {
+      btnPwaInstall.classList.remove('hidden');
+    }
+  });
+
+  if (btnPwaInstall) {
+    btnPwaInstall.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      deferredPrompt = null;
+      btnPwaInstall.classList.add('hidden');
+    });
+  }
+
+  window.addEventListener('appinstalled', (event) => {
+    console.log('Rhythm Reader was successfully installed.');
+    if (btnPwaInstall) {
+      btnPwaInstall.classList.add('hidden');
+    }
+  });
 });
 
 // Load configs & settings
@@ -128,6 +176,24 @@ function loadStoredSettings() {
     } catch (e) {
       console.error("Error loading user settings", e);
     }
+  }
+
+  // Load reading stats
+  const savedStats = localStorage.getItem('rr_reading_stats');
+  if (savedStats) {
+    try {
+      gameState.stats = { ...gameState.stats, ...JSON.parse(savedStats) };
+    } catch (e) {
+      console.error("Error parsing reading stats:", e);
+    }
+  } else {
+    gameState.stats = {
+      lifetimeWords: 0,
+      lifetimeSessions: 0,
+      peakWPM: 0,
+      lifetimeTimeSeconds: 0,
+      history: []
+    };
   }
 }
 
@@ -480,6 +546,107 @@ function setupUIEventListeners() {
       btnTogglePlayer.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
     }
   });
+
+  // Local File Import handler
+  const fileUpload = document.getElementById('input-file-upload');
+  const customTextArea = document.getElementById('textarea-custom-text');
+  const fileDropZone = document.querySelector('.file-import-zone');
+  
+  if (fileUpload && customTextArea) {
+    fileUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        customTextArea.value = event.target.result;
+        customTextArea.dispatchEvent(new Event('input'));
+        alert(`Successfully imported text from "${file.name}"`);
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  if (fileDropZone && customTextArea) {
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      fileDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, false);
+    });
+
+    // Highlight drop zone on dragenter/dragover
+    ['dragenter', 'dragover'].forEach(eventName => {
+      fileDropZone.addEventListener(eventName, () => {
+        fileDropZone.style.borderColor = 'var(--accent-cyan)';
+        fileDropZone.style.background = 'rgba(0, 240, 255, 0.08)';
+        fileDropZone.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.15)';
+      }, false);
+    });
+
+    // Remove highlight on dragleave/drop
+    ['dragleave', 'drop'].forEach(eventName => {
+      fileDropZone.addEventListener(eventName, () => {
+        fileDropZone.style.borderColor = 'rgba(0, 240, 255, 0.25)';
+        fileDropZone.style.background = 'rgba(0, 240, 255, 0.03)';
+        fileDropZone.style.boxShadow = 'none';
+      }, false);
+    });
+
+    // Handle file drop
+    fileDropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const file = dt.files[0];
+      if (file && file.name.endsWith('.txt')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          customTextArea.value = event.target.result;
+          customTextArea.dispatchEvent(new Event('input'));
+          alert(`Successfully imported text from "${file.name}"`);
+        };
+        reader.readAsText(file);
+      } else {
+        alert("Please drop a valid plain text file (.txt).");
+      }
+    });
+  }
+
+  // Stats Modal triggers
+  const btnStatsToggle = document.getElementById('btn-stats-toggle');
+  if (btnStatsToggle) {
+    btnStatsToggle.addEventListener('click', () => {
+      renderStatsModal();
+      openModal('modal-stats');
+    });
+  }
+  const btnCloseStatsModal = document.getElementById('btn-close-stats-modal');
+  if (btnCloseStatsModal) {
+    btnCloseStatsModal.addEventListener('click', () => closeModal('modal-stats'));
+  }
+  const btnCloseStats = document.getElementById('btn-close-stats');
+  if (btnCloseStats) {
+    btnCloseStats.addEventListener('click', () => closeModal('modal-stats'));
+  }
+
+  // Reset Stats handler
+  const btnResetStats = document.getElementById('btn-reset-stats');
+  if (btnResetStats) {
+    btnResetStats.addEventListener('click', () => {
+      if (confirm("Are you sure you want to permanently clear all your reading speed statistics and history logs?")) {
+        gameState.stats = {
+          lifetimeWords: 0,
+          lifetimeSessions: 0,
+          peakWPM: 0,
+          lifetimeTimeSeconds: 0,
+          history: []
+        };
+        localStorage.setItem('rr_reading_stats', JSON.stringify(gameState.stats));
+        renderStatsModal();
+        alert("Your statistics have been reset successfully.");
+      }
+    });
+  }
 }
 
 // Function to open modals safely
@@ -1021,6 +1188,10 @@ function launchGameSession() {
   // Reset sync state
   gameState.syncMode = false;
   gameState.syncedWordQueue = [];
+  gameState.lastYtTime = -1;
+  gameState.ytTimeBase = 0;
+  gameState.localTimeBase = 0;
+  gameState.needsSyncReset = true;
   if (gameState.syncPoller) {
     cancelAnimationFrame(gameState.syncPoller);
     gameState.syncPoller = null;
@@ -1099,7 +1270,7 @@ function launchGameSession() {
 
   // Setup initial counters
   gameState.isActive = true;
-  gameState.currentWordIndex = 0;
+  gameState.currentWordIndex = gameState.syncMode ? -1 : 0;
   gameState.score = 0;
   gameState.combo = 1;
   gameState.maxCombo = 1;
@@ -1294,7 +1465,11 @@ function parseLrcToWordQueue(lrcText) {
     const line = parsedLines[i];
     const nextLineTime = (i + 1 < parsedLines.length) ? parsedLines[i + 1].time : line.time + 4.0;
     const lineDuration = Math.max(0.5, nextLineTime - line.time);
-    const wordInterval = lineDuration / line.words.length;
+    
+    // Cap the word interval to make sure lyrics are sung at a realistic speed,
+    // rather than stretched over long instrumental breaks.
+    const maxWordInterval = 0.42; // 0.42s max per word (~143 WPM)
+    const wordInterval = Math.min(lineDuration / line.words.length, maxWordInterval);
 
     line.words.forEach((word, wi) => {
       wordQueue.push({
@@ -1317,14 +1492,19 @@ function startSyncLoop() {
     gameState.syncPoller = null;
   }
 
+  // Set the sync reset flag to recalibrate the high-res clock on first tick
+  gameState.needsSyncReset = true;
+
   function syncTick() {
     if (!gameState.isActive || !gameState.syncMode) return;
 
-    // Get current playback time from YouTube player
-    let currentTime = 0;
+    // Get current playback time and player state from YouTube player
+    let playerTime = 0;
+    let playerState = -1;
     try {
       if (gameState.ytPlayerReady && gameState.ytPlayer) {
-        currentTime = gameState.ytPlayer.getCurrentTime() || 0;
+        playerTime = gameState.ytPlayer.getCurrentTime() || 0;
+        playerState = gameState.ytPlayer.getPlayerState();
       }
     } catch (e) {
       // Player not ready yet — keep polling
@@ -1332,33 +1512,65 @@ function startSyncLoop() {
       return;
     }
 
-    const queue = gameState.syncedWordQueue;
-
-    // Show all words whose timestamp has arrived
-    while (
-      gameState.currentWordIndex < queue.length &&
-      currentTime >= queue[gameState.currentWordIndex].time
-    ) {
-      displaySyncWord(queue[gameState.currentWordIndex].word);
-      gameState.totalWordsRead++;
-      gameState.currentWordIndex++;
+    const now = performance.now();
+    // Calibrate baseline if player time changed, or if reset is forced
+    if (gameState.needsSyncReset || playerTime !== gameState.lastYtTime) {
+      gameState.lastYtTime = playerTime;
+      gameState.ytTimeBase = playerTime;
+      gameState.localTimeBase = now;
+      gameState.needsSyncReset = false;
     }
 
-    // Update progress bar and word counter
-    if (queue.length > 0) {
-      const pct = (gameState.currentWordIndex / queue.length) * 100;
-      document.getElementById('progress-bar-fill').style.width = `${pct}%`;
-      document.getElementById('hud-word-counter').textContent =
-        `Word ${gameState.currentWordIndex} / ${queue.length}`;
+    // Estimate playback time: if PLAYING, add smooth elapsed duration
+    let estimatedTime = gameState.ytTimeBase;
+    if (playerState === 1) { // PLAYING (state 1)
+      const playbackRate = gameState.ytPlayer.getPlaybackRate() || 1;
+      estimatedTime = gameState.ytTimeBase + ((now - gameState.localTimeBase) / 1000) * playbackRate;
+    }
+
+    const queue = gameState.syncedWordQueue;
+
+    // Find the active word index for the current estimated playback time
+    let activeIndex = -1;
+    for (let i = 0; i < queue.length; i++) {
+      if (estimatedTime >= queue[i].time) {
+        activeIndex = i;
+      } else {
+        break; // queue is sorted by time
+      }
+    }
+
+    // Display the active word if it has changed
+    if (activeIndex !== gameState.currentWordIndex) {
+      if (activeIndex === -1) {
+        // Show musical note or empty during song intro
+        document.getElementById('rsvp-word-box').innerHTML = `<span class="rsvp-prefix"></span><span class="rsvp-focus">&#9835;</span><span class="rsvp-suffix"></span>`;
+        document.getElementById('progress-bar-fill').style.width = '0%';
+        document.getElementById('hud-word-counter').textContent = `Word 0 / ${queue.length}`;
+      } else {
+        displaySyncWord(queue[activeIndex].word);
+        
+        // Update stats (safeguarded against backward seeking)
+        if (activeIndex > gameState.currentWordIndex) {
+          gameState.totalWordsRead += (activeIndex - Math.max(0, gameState.currentWordIndex));
+        }
+        
+        // Update progress bar and word counter
+        const pct = ((activeIndex + 1) / queue.length) * 100;
+        document.getElementById('progress-bar-fill').style.width = `${pct}%`;
+        document.getElementById('hud-word-counter').textContent =
+          `Word ${activeIndex + 1} / ${queue.length}`;
+      }
+      gameState.currentWordIndex = activeIndex;
     }
 
     // Update HUD timer to show current song position (mm:ss)
-    const min = Math.floor(currentTime / 60);
-    const sec = Math.floor(currentTime % 60);
+    const min = Math.floor(estimatedTime / 60);
+    const sec = Math.floor(estimatedTime % 60);
     document.getElementById('hud-timer').textContent = `${min}:${String(sec).padStart(2, '0')}`;
 
-    // If all words have been shown, stop polling (YouTube end event handles session close)
-    if (gameState.currentWordIndex >= queue.length && queue.length > 0) {
+    // If all words have been shown and video ended, stop polling
+    if (gameState.currentWordIndex >= queue.length - 1 && queue.length > 0 && playerState === 0) {
       gameState.syncPoller = null;
       return;
     }
@@ -1496,8 +1708,37 @@ function endGameSession(completed = true) {
   stopSessionLoops();
   recordPlayedMatch();
   
+  // Update lifetime stats
+  gameState.stats.lifetimeWords += gameState.totalWordsRead;
+  gameState.stats.lifetimeSessions++;
+  if (!gameState.syncMode) {
+    gameState.stats.peakWPM = Math.max(gameState.stats.peakWPM, gameState.wpm);
+  }
+  gameState.stats.lifetimeTimeSeconds += gameState.elapsedTime;
+  
+  // Add to session log history
+  const materialType = gameState.syncMode ? 'YouTube Sync' : (document.querySelector('.wizard-option-btn[data-preset].active')?.dataset.preset === 'custom' ? 'Custom Text' : 'Preset Story');
+  const formattedDate = new Date().toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  const durationMinSec = `${Math.floor(gameState.elapsedTime / 60)}:${String(gameState.elapsedTime % 60).padStart(2, '0')}`;
+  
+  gameState.stats.history.unshift({
+    date: formattedDate,
+    material: materialType,
+    wpm: gameState.syncMode ? 'Sync' : `${gameState.wpm} WPM`,
+    words: gameState.totalWordsRead,
+    duration: durationMinSec
+  });
+  
+  // Cap log history to last 20
+  if (gameState.stats.history.length > 20) {
+    gameState.stats.history.pop();
+  }
+  
+  // Save to local storage
+  localStorage.setItem('rr_reading_stats', JSON.stringify(gameState.stats));
+
   // Update stats summary UI
-  document.getElementById('stat-peak-wpm').textContent = `${gameState.wpm} WPM`;
+  document.getElementById('stat-peak-wpm').textContent = gameState.syncMode ? 'Sync Mode' : `${gameState.wpm} WPM`;
   document.getElementById('stat-words-read').textContent = gameState.totalWordsRead;
   
   // Calculate formatted elapsed duration
@@ -1659,8 +1900,11 @@ function initYouTubeAPI() {
           // YT.PlayerState: ENDED=0, PLAYING=1, PAUSED=2, BUFFERING=3
           if (event.data === 1) {
             // Song started or resumed playing
-            if (gameState.isActive && gameState.syncMode && !gameState.syncPoller) {
-              startSyncLoop();
+            if (gameState.isActive && gameState.syncMode) {
+              gameState.needsSyncReset = true;
+              if (!gameState.syncPoller) {
+                startSyncLoop();
+              }
             }
           } else if (event.data === 0) {
             // Song ended naturally
@@ -2147,6 +2391,36 @@ function renderYoutubePresetHits(songs) {
       title: firstSong.title,
       channel: firstSong.channel,
       thumb: firstSong.thumb
+    });
+  }
+}
+
+// Render Stats modal values dynamically
+function renderStatsModal() {
+  document.getElementById('stats-total-sessions').textContent = gameState.stats.lifetimeSessions;
+  document.getElementById('stats-total-words').textContent = gameState.stats.lifetimeWords;
+  document.getElementById('stats-peak-wpm').textContent = gameState.stats.peakWPM ? `${gameState.stats.peakWPM} WPM` : '0 WPM';
+  
+  const totalMin = Math.round(gameState.stats.lifetimeTimeSeconds / 60);
+  document.getElementById('stats-total-time').textContent = `${totalMin} min`;
+  
+  const tableBody = document.getElementById('history-table-body');
+  if (!tableBody) return;
+  tableBody.innerHTML = '';
+  
+  if (gameState.stats.history.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 15px;">No training sessions logged yet. Complete a session to see history!</td></tr>`;
+  } else {
+    gameState.stats.history.forEach(session => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${session.date}</td>
+        <td><span class="text-cyan">${session.material}</span></td>
+        <td><strong>${session.wpm}</strong></td>
+        <td>${session.words}</td>
+        <td>${session.duration}</td>
+      `;
+      tableBody.appendChild(tr);
     });
   }
 }

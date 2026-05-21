@@ -6,6 +6,12 @@
   <title>Rhythm Reader | Gamified Speed Reading & Rhythm Trainer</title>
   <meta name="description" content="Improve your reading speed and cognitive focus with Rhythm Reader. Read words synced to procedural musical beats, hit rhythm lanes, and track your WPM.">
   
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#08090e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
@@ -55,6 +61,12 @@
 
         <!-- Admin Control Toggle (shown for suraj.gzt@gmail.com) -->
         <button id="btn-admin-panel-toggle" class="btn-icon-only hidden" title="Admin Settings"><i class="fa-solid fa-sliders"></i></button>
+        
+        <!-- PWA Install Button (hidden by default) -->
+        <button id="btn-pwa-install" class="btn-icon-only hidden" title="Install App" style="color: var(--accent-pink); text-shadow: 0 0 10px var(--accent-pink);"><i class="fa-solid fa-download"></i></button>
+
+        <!-- Progress/Stats Toggle -->
+        <button id="btn-stats-toggle" class="btn-icon-only" title="My Progress"><i class="fa-solid fa-chart-line"></i></button>
         
         <!-- General Settings Toggle -->
         <button id="btn-settings-toggle" class="btn-icon-only" title="Game Settings"><i class="fa-solid fa-gear"></i></button>
@@ -127,6 +139,13 @@
 
           <!-- Slide-out Custom Text Textarea -->
           <div id="custom-text-input-container" class="custom-text-input-container hidden">
+            <div class="file-import-zone" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(0, 240, 255, 0.03); border: 1px dashed rgba(0, 240, 255, 0.25); padding: 8px 16px; border-radius: 8px;">
+              <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-file-lines text-cyan"></i> Import a plain text file (.txt)</span>
+              <label for="input-file-upload" class="btn btn-secondary btn-small" style="cursor: pointer; padding: 6px 12px; margin: 0; font-size: 0.75rem;">
+                <i class="fa-solid fa-file-import"></i> Browse File
+              </label>
+              <input type="file" id="input-file-upload" accept=".txt" style="display: none;">
+            </div>
             <textarea id="textarea-custom-text" placeholder="Paste your articles, books, or study notes here..."></textarea>
           </div>
 
@@ -654,6 +673,64 @@
       </div>
 
       <button id="btn-save-settings" class="btn btn-primary btn-block mt-3"><i class="fa-solid fa-check"></i> Apply Settings</button>
+    </div>
+  </div>
+
+  <!-- 4. Stats & Progress History Modal -->
+  <div id="modal-stats" class="modal-overlay">
+    <div class="modal-card stats-modal-card">
+      <button class="btn-close-modal" id="btn-close-stats-modal"><i class="fa-solid fa-xmark"></i></button>
+      
+      <div class="modal-header text-left">
+        <h2><i class="fa-solid fa-chart-line highlight-text"></i> My Progress & Stats</h2>
+        <p>Track your reading journey, training duration, and speed analytics.</p>
+      </div>
+
+      <!-- Lifetime Stats Cards -->
+      <div class="stats-summary-grid">
+        <div class="stat-card">
+          <span class="stat-label">Total Sessions Played</span>
+          <span id="stats-total-sessions" class="stat-value highlight-text">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Words Read</span>
+          <span id="stats-total-words" class="stat-value">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Peak Reading Speed</span>
+          <span id="stats-peak-wpm" class="stat-value">0 WPM</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Training Time</span>
+          <span id="stats-total-time" class="stat-value">0 min</span>
+        </div>
+      </div>
+
+      <!-- Session History Table -->
+      <div class="history-section mt-4">
+        <h3><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Recent Session Log</h3>
+        <div class="history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Material Type</th>
+                <th>Peak Speed</th>
+                <th>Words Read</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions mt-4" style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button id="btn-reset-stats" class="btn btn-danger-outline"><i class="fa-solid fa-trash-can"></i> Reset Stats</button>
+        <button id="btn-close-stats" class="btn btn-secondary"><i class="fa-solid fa-check"></i> Close</button>
+      </div>
     </div>
   </div>
 
