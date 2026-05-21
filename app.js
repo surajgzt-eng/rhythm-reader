@@ -103,6 +103,8 @@ document.addEventListener('DOMContentLoaded', () => {
   updateTrialStatusUI();
   initVisualizer();
   initYouTubeAPI();
+  initHomePageListeners();
+  renderHomePageSongs('all');
   loadTrendingYoutubeSongs();
 
   // Register PWA Service Worker
@@ -1314,6 +1316,7 @@ function launchGameSession() {
   gameState.synthTempoBPM = Math.min(180, Math.max(80, Math.floor(initialWpm / 2)));
 
   // Setup UI visibility
+  document.getElementById('setup-screen').classList.remove('active');
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('game-screen').classList.remove('hidden');
 
@@ -2337,6 +2340,100 @@ async function fetchLyricsForVideo(video) {
   }
 
   console.warn("All lyrics queries failed for video:", video.title);
+}
+
+// ─── Home Page: YouTube Music-Style Song List ──────────────────────────────
+
+function initHomeGreeting() {
+  const el = document.getElementById('home-greeting');
+  if (!el) return;
+  const h = new Date().getHours();
+  el.textContent = h < 12 ? 'Good morning ☀️' : h < 17 ? 'Good afternoon 🎵' : h < 21 ? 'Good evening 🌆' : 'Good night 🌙';
+}
+
+function renderHomePageSongs(genreFilter = 'all') {
+  const container = document.getElementById('home-song-list');
+  if (!container) return;
+
+  let songs = defaultYoutubePresetHits;
+  if (genreFilter !== 'all') {
+    songs = songs.filter(s => s.genre === genreFilter);
+  }
+
+  container.innerHTML = '';
+
+  if (songs.length === 0) {
+    container.innerHTML = '<div class="home-song-loading">No songs in this category yet.</div>';
+    return;
+  }
+
+  songs.forEach(song => {
+    const card = document.createElement('div');
+    card.className = 'home-song-card';
+    card.dataset.videoId = song.id;
+    card.innerHTML = `
+      <img class="home-song-thumb" src="${song.thumb}" alt="${escapeHTML(song.title)}" loading="lazy">
+      <div class="home-song-info">
+        <span class="home-song-title">${escapeHTML(song.title)}</span>
+        <span class="home-song-meta">${escapeHTML(song.channel)} &bull; ${song.genre}</span>
+        <span class="home-song-caption-tag">&#128250; YouTube captions</span>
+      </div>
+      <button class="home-song-play-btn" aria-label="Select ${escapeHTML(song.title)}">
+        <i class="fa-solid fa-play"></i>
+      </button>
+    `;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.home-song-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectYoutubeVideo(song, true);
+      // Show the bottom bar
+      const bar = document.getElementById('selected-yt-video-card');
+      if (bar) bar.classList.remove('hidden');
+    });
+    container.appendChild(card);
+  });
+}
+
+function initHomePageListeners() {
+  // Genre filter chips
+  document.querySelectorAll('.home-genre-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.home-genre-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      renderHomePageSongs(chip.dataset.genre);
+    });
+  });
+
+  // Speed chips in the bottom bar
+  document.querySelectorAll('.home-speed-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.home-speed-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const wpm = parseInt(chip.dataset.wpm) || 200;
+      gameState.wpm = wpm;
+      const slider = document.getElementById('input-wpm-slider');
+      const display = document.getElementById('wpm-display');
+      if (slider) slider.value = wpm;
+      if (display) display.textContent = `${wpm} WPM`;
+    });
+  });
+
+  // Custom search toggle
+  const searchBtn = document.getElementById('btn-option-custom-search');
+  const searchDrawer = document.getElementById('custom-search-container');
+  if (searchBtn && searchDrawer) {
+    searchBtn.addEventListener('click', () => {
+      const isOpen = !searchDrawer.classList.contains('hidden');
+      searchDrawer.classList.toggle('hidden', isOpen);
+      if (!isOpen) {
+        const inp = document.getElementById('input-yt-search');
+        if (inp) inp.focus();
+      }
+    });
+  }
+
+  // Initialize greeting
+  initHomeGreeting();
 }
 
 async function loadTrendingYoutubeSongs() {

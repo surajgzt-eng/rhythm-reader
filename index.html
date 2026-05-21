@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Rhythm Reader | Gamified Speed Reading & Rhythm Trainer</title>
   <meta name="description" content="Improve your reading speed and cognitive focus with Rhythm Reader. Read words synced to procedural musical beats, hit rhythm lanes, and track your WPM.">
   
@@ -28,245 +28,137 @@
   <!-- Audio reactive background canvas -->
   <canvas id="bg-visualizer" class="visualizer-canvas"></canvas>
 
-  <!-- App Header -->
-  <header class="app-header">
-    <div class="header-container">
-      <div class="brand">
-        <div class="brand-logo"><i class="fa-solid fa-bolt-lightning"></i></div>
-        <span class="brand-name">Rhythm<span class="glow-text">Reader</span></span>
-      </div>
-
-      <div class="header-actions">
-        <!-- Trial Status Badge -->
-        <div id="trial-badge" class="trial-badge status-day1">
-          <i class="fa-solid fa-clock"></i> <span id="trial-badge-text">Day 1: Unlimited Trial</span>
-        </div>
-
-        <!-- Google User Profile / Login -->
-        <div id="auth-section">
-          <button id="btn-google-login" class="btn btn-auth">
-            <img src="https://lh3.googleusercontent.com/COxitDO29yUbo07aHBwZPqeeZ4Vj55J823zw1R53447v783PvI01Bz4g1IGZ4rId56g=s50" alt="Google Logo" class="google-logo">
-            <span>Login with Gmail</span>
-          </button>
-          
-          <div id="user-profile" class="user-profile hidden">
-            <img id="user-avatar" src="" alt="User Avatar" class="user-avatar">
-            <div class="user-info">
-              <span id="user-display-name" class="user-name">Loading...</span>
-              <span id="user-sub-status" class="sub-status free">Free Plan</span>
-            </div>
-            <button id="btn-logout" class="btn-icon-only" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
-          </div>
-        </div>
-
-        <!-- Admin Control Toggle (shown for suraj.gzt@gmail.com) -->
-        <button id="btn-admin-panel-toggle" class="btn-icon-only hidden" title="Admin Settings"><i class="fa-solid fa-sliders"></i></button>
-        
-        <!-- PWA Install Button (hidden by default) -->
-        <button id="btn-pwa-install" class="btn-icon-only hidden" title="Install App" style="color: var(--accent-pink); text-shadow: 0 0 10px var(--accent-pink);"><i class="fa-solid fa-download"></i></button>
-
-        <!-- Progress/Stats Toggle -->
-        <button id="btn-stats-toggle" class="btn-icon-only" title="My Progress"><i class="fa-solid fa-chart-line"></i></button>
-        
-        <!-- General Settings Toggle -->
-        <button id="btn-settings-toggle" class="btn-icon-only" title="Game Settings"><i class="fa-solid fa-gear"></i></button>
-      </div>
-    </div>
-  </header>
-
   <!-- Main Application Container -->
   <main class="app-container">
 
-    <!-- 1. Setup Screen (Wizard Flow) -->
-    <section id="setup-screen" class="setup-card active">
-      <h2 class="section-title">Train Your Brain. <span class="highlight-text">Read in Rhythm.</span></h2>
-      <p class="section-desc">Select your reading material, sync it to musical beats, and boost your reading speed naturally.</p>
-      
-      <!-- Wizard Progress Dots -->
-      <div class="wizard-steps-indicator">
-        <div class="wizard-step-dot active" data-step="1" id="step-dot-1">
-          <div class="dot-circle">1</div>
-          <div class="dot-label">Reading</div>
+    <!-- HOME SCREEN: YouTube Music Style -->
+    <section id="setup-screen" class="home-screen active">
+
+      <!-- â”€â”€â”€ Top App Bar â”€â”€â”€ -->
+      <header class="home-app-bar">
+        <div class="home-bar-brand">
+          <div class="home-bar-logo"><i class="fa-solid fa-bolt-lightning"></i></div>
+          <span class="home-bar-title">Rhythm<span class="glow-text">Reader</span></span>
         </div>
-        <div class="wizard-step-dot" data-step="2" id="step-dot-2">
-          <div class="dot-circle">2</div>
-          <div class="dot-label">Soundtrack</div>
+        <div class="home-bar-actions">
+          <div id="trial-badge" class="trial-badge status-day1">
+            <i class="fa-solid fa-clock"></i>
+            <span id="trial-badge-text">Day 1</span>
+          </div>
+          <button id="btn-stats-toggle" class="btn-icon-only" title="My Progress">
+            <i class="fa-solid fa-chart-line"></i>
+          </button>
+          <button id="btn-settings-toggle" class="btn-icon-only" title="Settings">
+            <i class="fa-solid fa-gear"></i>
+          </button>
+          <button id="btn-pwa-install" class="btn-icon-only hidden" title="Install App" style="color:var(--color-pink)">
+            <i class="fa-solid fa-download"></i>
+          </button>
+          <div id="auth-section">
+            <button id="btn-google-login" class="btn-avatar-login" title="Sign in with Google">
+              <img src="https://lh3.googleusercontent.com/COxitDO29yUbo07aHBwZPqeeZ4Vj55J823zw1R53447v783PvI01Bz4g1IGZ4rId56g=s50" alt="G" class="google-logo-mini">
+            </button>
+            <div id="user-profile" class="home-user-avatar-wrap hidden">
+              <img id="user-avatar" src="" alt="Me" class="home-user-avatar">
+              <button id="btn-logout" class="home-logout-btn" title="Sign out">
+                <i class="fa-solid fa-right-from-bracket"></i>
+              </button>
+            </div>
+          </div>
+          <button id="btn-admin-panel-toggle" class="btn-icon-only hidden" title="Admin">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
         </div>
-        <div class="wizard-step-dot" data-step="3" id="step-dot-3">
-          <div class="dot-circle">3</div>
-          <div class="dot-label">Speed</div>
+      </header>
+
+      <!-- â”€â”€â”€ Greeting + Search â”€â”€â”€ -->
+      <div class="home-greeting-wrap">
+        <div>
+          <h1 id="home-greeting" class="home-greeting-headline">Good evening &#127925;</h1>
+          <p class="home-greeting-sub">Tap a song &mdash; words appear as you listen</p>
+        </div>
+        <button id="btn-option-custom-search" class="home-search-btn" title="Search YouTube">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </div>
+
+      <!-- Custom YouTube Search Drawer -->
+      <div id="custom-search-container" class="home-search-drawer hidden">
+        <div class="home-search-inner">
+          <input type="text" id="input-yt-search" class="home-search-input" placeholder="Song name or paste YouTube link&hellip;">
+          <button id="btn-yt-search" class="home-search-go"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+        <div id="yt-search-results" class="yt-search-results-container hidden"></div>
+      </div>
+
+      <!-- â”€â”€â”€ Genre Filter Chips â”€â”€â”€ -->
+      <div class="home-genre-bar" id="home-genre-bar">
+        <button class="home-genre-chip active" data-genre="all">All</button>
+        <button class="home-genre-chip" data-genre="&#127925; Pop">&#127925; Pop</button>
+        <button class="home-genre-chip" data-genre="&#127908; Hip-Hop">&#127908; Hip-Hop</button>
+        <button class="home-genre-chip" data-genre="&#127928; Rock">&#127928; Rock</button>
+        <button class="home-genre-chip" data-genre="&#10024; Chill">&#10024; Chill</button>
+      </div>
+
+      <!-- â”€â”€â”€ Scrollable Song List â”€â”€â”€ -->
+      <div class="home-song-list" id="home-song-list">
+        <div class="home-song-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Loading songs&hellip;
         </div>
       </div>
 
-      <!-- Wizard Content Panes -->
-      <div class="wizard-panes">
-        
-        <!-- Step 1: Reading Material -->
-        <div class="wizard-pane active" id="wizard-pane-1">
-          <h3 class="wizard-pane-title"><i class="fa-solid fa-file-lines"></i> Select Reading Material</h3>
-          <p class="wizard-pane-desc">Tap one of the options below to choose what to read today:</p>
-          
-          <div class="preset-vertical-list">
-            <button class="wizard-option-btn active" data-preset="scifi" id="btn-preset-scifi">
-              <div class="option-icon"><i class="fa-solid fa-rocket"></i></div>
-              <div class="option-text">
-                <strong>Cosmic Horizon</strong>
-                <span>Sci-Fi space odyssey exploration</span>
-              </div>
-            </button>
-            <button class="wizard-option-btn" data-preset="quotes" id="btn-preset-quotes">
-              <div class="option-icon"><i class="fa-solid fa-quote-left"></i></div>
-              <div class="option-text">
-                <strong>Words of Wisdom</strong>
-                <span>Inspirational quotes and proverbs</span>
-              </div>
-            </button>
-            <button class="wizard-option-btn" data-preset="fairytale" id="btn-preset-fairytale">
-              <div class="option-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-              <div class="option-text">
-                <strong>The Magic Soroban</strong>
-                <span>An ancient mathematical fairy tale</span>
-              </div>
-            </button>
-            <button class="wizard-option-btn" data-preset="custom" id="btn-preset-custom">
-              <div class="option-icon"><i class="fa-solid fa-pen-to-square"></i></div>
-              <div class="option-text">
-                <strong>Write or Paste Custom Text</strong>
-                <span>Insert your own articles, books, or notes</span>
-              </div>
-            </button>
+      <!-- â”€â”€â”€ Bottom Now-Playing / Launch Bar â”€â”€â”€ -->
+      <div id="selected-yt-video-card" class="home-now-playing-bar hidden">
+        <!-- Song info row -->
+        <div class="home-np-song-row">
+          <img id="selected-yt-thumb" src="" alt="" class="home-np-thumb">
+          <div class="home-np-info">
+            <span id="selected-yt-title" class="home-np-title">No song selected</span>
+            <span id="selected-yt-channel" class="home-np-channel"></span>
+            <span id="selected-yt-lyrics-status" class="home-np-status"></span>
           </div>
-
-          <!-- Slide-out Custom Text Textarea -->
-          <div id="custom-text-input-container" class="custom-text-input-container hidden">
-            <div class="file-import-zone" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(0, 240, 255, 0.03); border: 1px dashed rgba(0, 240, 255, 0.25); padding: 8px 16px; border-radius: 8px;">
-              <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-file-lines text-cyan"></i> Import a plain text file (.txt)</span>
-              <label for="input-file-upload" class="btn btn-secondary btn-small" style="cursor: pointer; padding: 6px 12px; margin: 0; font-size: 0.75rem;">
-                <i class="fa-solid fa-file-import"></i> Browse File
-              </label>
-              <input type="file" id="input-file-upload" accept=".txt" style="display: none;">
-            </div>
-            <textarea id="textarea-custom-text" placeholder="Paste your articles, books, or study notes here..."></textarea>
-          </div>
-
-          <div class="wizard-actions">
-            <button class="btn btn-primary btn-next-step" data-current="1">Continue <i class="fa-solid fa-arrow-right"></i></button>
+          <button id="btn-clear-yt-selection" class="home-np-clear" title="Change song">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <!-- Speed chips -->
+        <div class="home-speed-row">
+          <span class="home-speed-label"><i class="fa-solid fa-gauge-high"></i> Speed</span>
+          <div class="home-speed-chips">
+            <button class="home-speed-chip" data-wpm="150">Slow<br><small>150</small></button>
+            <button class="home-speed-chip active" data-wpm="200">Normal<br><small>200</small></button>
+            <button class="home-speed-chip" data-wpm="300">Fast<br><small>300</small></button>
+            <button class="home-speed-chip" data-wpm="450">Pro<br><small>450</small></button>
           </div>
         </div>
-
-        <!-- Step 2: Soundtrack Selection -->
-        <div class="wizard-pane" id="wizard-pane-2">
-          <h3 class="wizard-pane-title"><i class="fa-solid fa-music"></i> Choose Background Soundtrack</h3>
-          <p class="wizard-pane-desc">Listen to real-time procedural synthesizers or stream latest hits directly from YouTube:</p>
-
-          <div class="soundtrack-scroll-area">
-            <!-- Part A: Procedural Synth Beats -->
-            <h4 class="soundtrack-section-title"><i class="fa-solid fa-wave-square"></i> Procedural Beats (No internet required)</h4>
-            <div class="preset-vertical-list">
-              <button class="wizard-option-btn" data-track="synthwave">
-                <div class="option-icon"><i class="fa-solid fa-radio"></i></div>
-                <div class="option-text">
-                  <strong>Neon Synth</strong>
-                  <span>Energetic 110 BPM cyber beats</span>
-                </div>
-              </button>
-              <button class="wizard-option-btn" data-track="lofi">
-                <div class="option-icon"><i class="fa-solid fa-mug-hot"></i></div>
-                <div class="option-text">
-                  <strong>Chill Lofi</strong>
-                  <span>Relaxing 85 BPM study beats</span>
-                </div>
-              </button>
-              <button class="wizard-option-btn" data-track="ambient">
-                <div class="option-icon"><i class="fa-solid fa-wind"></i></div>
-                <div class="option-text">
-                  <strong>Space Ambient</strong>
-                  <span>Slow 70 BPM deep cosmic pads</span>
-                </div>
-              </button>
-            </div>
-
-            <!-- Part B: Dynamic Latest YouTube Hits -->
-            <h4 class="soundtrack-section-title mt-4"><i class="fa-brands fa-youtube"></i> Trending YouTube Hits</h4>
-            <div id="youtube-preset-hits-container" class="preset-vertical-list">
-              <div class="loading-placeholder">
-                <i class="fa-solid fa-spinner fa-spin"></i> Loading latest hits...
-              </div>
-            </div>
-
-            <!-- Part C: Custom YouTube Search (Gated) -->
-            <h4 class="soundtrack-section-title mt-4"><i class="fa-solid fa-magnifying-glass"></i> Custom Audio</h4>
-            <div class="preset-vertical-list">
-              <button class="wizard-option-btn" data-track="custom-search" id="btn-option-custom-search">
-                <div class="option-icon"><i class="fa-solid fa-magnifying-glass-music"></i></div>
-                <div class="option-text">
-                  <strong>Search Custom YouTube Song</strong>
-                  <span>Search by title or paste any direct YouTube URL</span>
-                </div>
-              </button>
-            </div>
-
-            <!-- Custom YouTube Search Bar container (revealed on click if unlocked) -->
-            <div id="custom-search-container" class="youtube-search-wrapper mt-3 hidden">
-              <div class="search-input-group">
-                <input type="text" id="input-yt-search" placeholder="Enter song title or paste YouTube link...">
-                <button id="btn-yt-search" class="btn btn-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
-              </div>
-              
-              <!-- Search Results Box -->
-              <div id="yt-search-results" class="yt-search-results-container hidden">
-                <!-- Video items will be injected here -->
-              </div>
-            </div>
-
-            <!-- Active Selected Video Box (shows if a YouTube track is active) -->
-            <div id="selected-yt-video-card" class="selected-video-card mt-3 hidden">
-              <img id="selected-yt-thumb" src="" alt="Thumbnail">
-              <div class="video-info">
-                <span class="video-label">Selected YouTube Track:</span>
-                <span id="selected-yt-title" class="video-title">No song selected</span>
-                <span id="selected-yt-channel" class="video-channel"></span>
-                <span id="selected-yt-lyrics-status" class="video-lyrics-status" style="font-size: 0.7rem; margin-top: 2px;"></span>
-              </div>
-              <button id="btn-clear-yt-selection" class="btn-clear-selection" type="button"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-          </div>
-
-          <div class="wizard-actions mt-4">
-            <button class="btn btn-secondary-outline btn-prev-step" data-current="2"><i class="fa-solid fa-arrow-left"></i> Back</button>
-            <button class="btn btn-primary btn-next-step" data-current="2">Continue <i class="fa-solid fa-arrow-right"></i></button>
-          </div>
-        </div>
-
-        <!-- Step 3: Speed & Launch -->
-        <div class="wizard-pane" id="wizard-pane-3">
-          <h3 class="wizard-pane-title"><i class="fa-solid fa-gauge-high"></i> Select Speed & Launch</h3>
-          <p class="wizard-pane-desc">Set your WPM speed. Words flash one by one, accelerating every 30 seconds:</p>
-
-          <div class="form-group speed-slider-container mt-4">
-            <div class="slider-header">
-              <label class="form-label">Starting Speed</label>
-              <span id="wpm-display" class="speed-badge">200 WPM</span>
-            </div>
-            <input type="range" id="input-wpm-slider" min="150" max="600" step="25" value="200" class="speed-slider">
-            <div class="slider-labels">
-              <span>Slow (150 WPM)</span>
-              <span>Fast (350 WPM)</span>
-              <span>Extreme (600 WPM)</span>
-            </div>
-          </div>
-
-          <div class="wizard-actions mt-5">
-            <button class="btn btn-secondary-outline btn-prev-step" data-current="3"><i class="fa-solid fa-arrow-left"></i> Back</button>
-            <button id="btn-start-game" class="btn btn-primary btn-large">
-              <i class="fa-solid fa-play"></i> Launch Rhythm Session
-            </button>
-          </div>
-        </div>
-
+        <!-- Launch -->
+        <button id="btn-start-game" class="home-btn-start">
+          <i class="fa-solid fa-play"></i>&nbsp; START READING
+        </button>
       </div>
+
+      <!-- â”€â”€â”€ JS Compat stubs (hidden; used by existing app.js logic) â”€â”€â”€ -->
+      <div style="display:none !important;" aria-hidden="true">
+        <div id="wizard-pane-1"></div><div id="wizard-pane-2"></div><div id="wizard-pane-3"></div>
+        <div id="step-dot-1" class="wizard-step-dot" data-step="1"></div>
+        <div id="step-dot-2" class="wizard-step-dot" data-step="2"></div>
+        <div id="step-dot-3" class="wizard-step-dot" data-step="3"></div>
+        <button class="wizard-option-btn active" data-preset="scifi"   id="btn-preset-scifi"></button>
+        <button class="wizard-option-btn"        data-preset="quotes"  id="btn-preset-quotes"></button>
+        <button class="wizard-option-btn"        data-preset="fairytale" id="btn-preset-fairytale"></button>
+        <button class="wizard-option-btn"        data-preset="custom"  id="btn-preset-custom"></button>
+        <div id="custom-text-input-container" class="hidden">
+          <input type="file" id="input-file-upload" accept=".txt">
+          <textarea id="textarea-custom-text"></textarea>
+        </div>
+        <div id="youtube-preset-hits-container"></div>
+        <input type="range" id="input-wpm-slider" min="150" max="600" step="25" value="200">
+        <span id="wpm-display">200 WPM</span>
+        <span id="user-display-name"></span>
+        <span id="user-sub-status"></span>
+      </div>
+
     </section>
-
     <!-- 2. Active Game Screen -->
     <section id="game-screen" class="game-container hidden">
       <!-- Game HUD (Top stats bar) -->
@@ -329,9 +221,9 @@
 
         <!-- Lyrics sync offset nudge (visible only in sync/YouTube mode) -->
         <div id="lyrics-offset-control" class="speed-tweakers hidden" title="Nudge lyrics earlier or later to match the song">
-          <button id="btn-offset-minus" class="btn btn-small" style="color: var(--color-pink);" title="Words appear too late — shift earlier"><i class="fa-solid fa-backward-step"></i> -1s</button>
+          <button id="btn-offset-minus" class="btn btn-small" style="color: var(--color-pink);" title="Words appear too late â€” shift earlier"><i class="fa-solid fa-backward-step"></i> -1s</button>
           <span class="small-label" id="offset-display" style="color: var(--color-cyan);">Sync: 0s</span>
-          <button id="btn-offset-plus" class="btn btn-small" style="color: var(--color-cyan);" title="Words appear too early — shift later"><i class="fa-solid fa-forward-step"></i> +1s</button>
+          <button id="btn-offset-plus" class="btn btn-small" style="color: var(--color-cyan);" title="Words appear too early â€” shift later"><i class="fa-solid fa-forward-step"></i> +1s</button>
         </div>
 
         <button id="btn-exit-game" class="btn btn-danger-outline"><i class="fa-solid fa-xmark"></i> Exit Session</button>
@@ -389,7 +281,7 @@
         <div class="price-card" data-plan="monthly">
           <span class="plan-badge">Standard</span>
           <h3>Monthly Pass</h3>
-          <div class="price-value">₹59<span class="period">/month</span></div>
+          <div class="price-value">â‚¹59<span class="period">/month</span></div>
           <p class="plan-desc">Perfect for quick reading tests and core accuracy training.</p>
           <ul class="plan-features">
             <li><i class="fa-solid fa-check"></i> Unlimited daily training matches</li>
@@ -403,7 +295,7 @@
         <div class="price-card popular" data-plan="yearly">
           <span class="plan-badge badge-popular">Best Value</span>
           <h3>Yearly Pass</h3>
-          <div class="price-value">₹599<span class="period">/year</span></div>
+          <div class="price-value">â‚¹599<span class="period">/year</span></div>
           <p class="plan-desc">Accelerate your speed reading skills with consistent focus. Save 15%!</p>
           <ul class="plan-features">
             <li><i class="fa-solid fa-check"></i> Unlimited daily training matches</li>
@@ -418,7 +310,7 @@
 
       <!-- Payment Gateways Container -->
       <div id="payment-gateways-box" class="payment-gateways-box hidden">
-        <h3 class="gateway-title">Complete Payment for <span id="checkout-plan-name" class="highlight-text">Monthly Pass</span> (₹<span id="checkout-amount">59</span>)</h3>
+        <h3 class="gateway-title">Complete Payment for <span id="checkout-plan-name" class="highlight-text">Monthly Pass</span> (â‚¹<span id="checkout-amount">59</span>)</h3>
         
         <!-- Tab Switches -->
         <div class="payment-tabs">
