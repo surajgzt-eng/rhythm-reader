@@ -1595,6 +1595,255 @@ input[type="text"]:focus, select:focus {
 }
 
 .announcement-content p {
-  font-size: 1.2rem;
+}
+
+/* --- 12. YouTube Search & Floating Player Integration --- */
+
+/* Music source tabs styling */
+.music-source-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.source-tab {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  padding: 10px;
+  border-radius: 6px;
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition-smooth);
+}
+
+.source-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.source-tab.active {
+  background: rgba(0, 240, 255, 0.08);
+  border-color: var(--color-cyan);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+}
+
+.music-source-section {
+  transition: opacity 0.3s ease;
+}
+
+/* YouTube search layout */
+.youtube-search-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.search-input-group input {
+  flex: 1;
+}
+
+/* Selected Video Card styling */
+.selected-video-card {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 240, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  gap: 12px;
+  margin-top: 5px;
+}
+
+.selected-video-card img {
+  width: 50px;
+  height: 38px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+.selected-video-card .video-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.selected-video-card .video-label {
+  font-size: 0.65rem;
+  color: var(--color-cyan);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.selected-video-card .video-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-video-card .video-channel {
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
+
+.btn-clear-selection {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+  transition: var(--transition-smooth);
+}
+
+.btn-clear-selection:hover {
+  color: var(--color-red);
+}
+
+/* Search results list */
+.yt-search-results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.yt-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  border: 1px solid transparent;
+}
+
+.yt-result-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.yt-result-item img {
+  width: 48px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.yt-result-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.yt-result-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yt-result-channel {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Floating YouTube Player widget */
+.yt-player-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 240px;
+  background: rgba(16, 18, 30, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid var(--color-cyan);
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+  z-index: 999;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.yt-player-container.minimized {
+  width: 160px;
+}
+
+.yt-player-container.minimized .yt-player-content {
+  display: none;
+}
+
+.yt-player-header {
+  padding: 8px 12px;
+  background: rgba(0, 240, 255, 0.08);
+  font-family: var(--font-main);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+.btn-icon-mini {
+  background: transparent;
+  border: none;
+  color: var(--color-cyan);
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  transition: var(--transition-smooth);
+}
+
+.btn-icon-mini:hover {
+  color: #fff;
+}
+
+.yt-player-content {
+  width: 240px;
+  height: 135px;
+  background: #000;
+}
+
+#youtube-player {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+

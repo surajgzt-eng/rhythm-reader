@@ -14,7 +14,8 @@ const gameState = {
     bankName: 'State Bank of India',
     bankHolder: 'STEM Abacus Academy',
     bankAccount: '936140956612',
-    bankIfsc: 'SBIN0001234'
+    bankIfsc: 'SBIN0001234',
+    youtubeApiKey: ''
   },
   
   // User Authentication Info
@@ -55,6 +56,10 @@ const gameState = {
   synthTempoBPM: 100,
   synthVolume: 0.5,
   synthTrack: 'synthwave',
+  musicSource: 'presets',
+  youtubeSelectedVideo: null,
+  ytPlayer: null,
+  ytPlayerReady: false,
   
   // Visuals & Gameplay Animation
   notes: [], // falling note coordinates
@@ -79,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateAuthUI();
   updateTrialStatusUI();
   initVisualizer();
+  initYouTubeAPI();
 });
 
 // Load configs & settings
@@ -321,6 +327,13 @@ function setupUIEventListeners() {
   // Volume slider adjust
   document.getElementById('input-volume-slider').addEventListener('input', (e) => {
     gameState.synthVolume = parseFloat(e.target.value);
+    if (gameState.ytPlayerReady && gameState.ytPlayer) {
+      try {
+        gameState.ytPlayer.setVolume(gameState.synthVolume * 100);
+      } catch (err) {
+        console.warn(err);
+      }
+    }
   });
 
   // Rhythm target button triggers (Keyboard support in section 5)
@@ -362,6 +375,60 @@ function setupUIEventListeners() {
   // Admin User Database Search
   document.getElementById('btn-search-user').addEventListener('click', searchUserSubscription);
   document.getElementById('btn-save-user-sub').addEventListener('click', saveManualUserSubscription);
+
+  // YouTube Music Tab & Search event listeners
+  const tabPresets = document.getElementById('tab-music-presets');
+  const tabYoutube = document.getElementById('tab-music-youtube');
+  const secPresets = document.getElementById('section-music-presets');
+  const secYoutube = document.getElementById('section-music-youtube');
+
+  tabPresets.addEventListener('click', () => {
+    tabPresets.classList.add('active');
+    tabYoutube.classList.remove('active');
+    secPresets.classList.remove('hidden');
+    secYoutube.classList.add('hidden');
+    gameState.musicSource = 'presets';
+  });
+
+  tabYoutube.addEventListener('click', () => {
+    tabYoutube.classList.add('active');
+    tabPresets.classList.remove('active');
+    secYoutube.classList.remove('hidden');
+    secPresets.classList.add('hidden');
+    gameState.musicSource = 'youtube';
+  });
+
+  const btnSearch = document.getElementById('btn-yt-search');
+  const inputSearch = document.getElementById('input-yt-search');
+
+  btnSearch.addEventListener('click', () => {
+    performYoutubeSearch(inputSearch.value.trim());
+  });
+
+  inputSearch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      performYoutubeSearch(inputSearch.value.trim());
+    }
+  });
+
+  document.getElementById('btn-clear-yt-selection').addEventListener('click', () => {
+    gameState.youtubeSelectedVideo = null;
+    document.getElementById('selected-yt-video-card').classList.add('hidden');
+  });
+
+  const btnTogglePlayer = document.getElementById('btn-toggle-yt-player');
+  const playerContainer = document.getElementById('yt-player-container');
+  
+  btnTogglePlayer.addEventListener('click', () => {
+    const isMinimized = playerContainer.classList.contains('minimized');
+    if (isMinimized) {
+      playerContainer.classList.remove('minimized');
+      btnTogglePlayer.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+    } else {
+      playerContainer.classList.add('minimized');
+      btnTogglePlayer.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+    }
+  });
 }
 
 // Function to open modals safely
@@ -579,6 +646,7 @@ function loadAdminConfigUI() {
   document.getElementById('cfg-razorpay-btn-yearly').value = gameState.config.razorpayBtnYearly;
   document.getElementById('cfg-paypal-client-id').value = gameState.config.paypalClientId;
   document.getElementById('cfg-upi-id').value = gameState.config.upiId;
+  document.getElementById('cfg-youtube-api-key').value = gameState.config.youtubeApiKey || '';
   
   document.getElementById('cfg-bank-name').value = gameState.config.bankName;
   document.getElementById('cfg-bank-holder').value = gameState.config.bankHolder;
@@ -607,6 +675,7 @@ function saveAdminConfig() {
   gameState.config.razorpayBtnYearly = document.getElementById('cfg-razorpay-btn-yearly').value;
   gameState.config.paypalClientId = document.getElementById('cfg-paypal-client-id').value;
   gameState.config.upiId = document.getElementById('cfg-upi-id').value;
+  gameState.config.youtubeApiKey = document.getElementById('cfg-youtube-api-key').value.trim();
   
   gameState.config.bankName = document.getElementById('cfg-bank-name').value;
   gameState.config.bankHolder = document.getElementById('cfg-bank-holder').value;
@@ -630,7 +699,8 @@ function resetAdminConfig() {
       bankName: 'State Bank of India',
       bankHolder: 'STEM Abacus Academy',
       bankAccount: '936140956612',
-      bankIfsc: 'SBIN0001234'
+      bankIfsc: 'SBIN0001234',
+      youtubeApiKey: ''
     };
     loadAdminConfigUI();
     alert("Configuration reset.");
@@ -931,6 +1001,10 @@ function playProceduralTrackBeat(step) {
   // Equalizer viz triggers
   triggerVisualizerPulse();
 
+  if (gameState.musicSource === 'youtube') {
+    return; // Mute procedural synthesis, run visualizer pulses only
+  }
+
   // 1. Kick Drum (Step 0, 4, 8, 12)
   if (step % 4 === 0) {
     const osc = ctx.createOscillator();
@@ -1050,6 +1124,11 @@ function playSynthFeedback(isSuccess) {
 
 // --- 10. Core Session Loop (RSVP word flash controller) ---
 function launchGameSession() {
+  if (gameState.musicSource === 'youtube' && !gameState.youtubeSelectedVideo) {
+    alert("Please search and select a YouTube song first, or switch back to Built-in Beats.");
+    return;
+  }
+
   initAudio();
   
   // Read configured inputs
@@ -1118,6 +1197,27 @@ function launchGameSession() {
   startSynthLoop();
   startTimers();
   triggerRsvpWordFlash();
+
+  // Start YouTube player
+  if (gameState.musicSource === 'youtube') {
+    const ytContainer = document.getElementById('yt-player-container');
+    ytContainer.classList.remove('hidden');
+    if (gameState.ytPlayerReady && gameState.ytPlayer) {
+      try {
+        gameState.ytPlayer.stopVideo();
+        gameState.ytPlayer.loadVideoById({
+          videoId: gameState.youtubeSelectedVideo.id,
+          suggestedQuality: 'small'
+        });
+        gameState.ytPlayer.setVolume(gameState.synthVolume * 100);
+        gameState.ytPlayer.playVideo();
+      } catch (err) {
+        console.warn("Error starting YouTube video:", err);
+      }
+    }
+  } else {
+    document.getElementById('yt-player-container').classList.add('hidden');
+  }
 }
 
 function startTimers() {
@@ -1218,6 +1318,14 @@ function togglePauseGame() {
     gameState.isActive = false;
     pauseBtn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
     stopSynthLoop();
+
+    if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
+      try {
+        gameState.ytPlayer.pauseVideo();
+      } catch (err) {
+        console.warn(err);
+      }
+    }
   } else {
     // Resume
     gameState.isActive = true;
@@ -1225,6 +1333,14 @@ function togglePauseGame() {
     startSynthLoop();
     triggerRsvpWordFlash();
     updateFallingNotes();
+
+    if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
+      try {
+        gameState.ytPlayer.playVideo();
+      } catch (err) {
+        console.warn(err);
+      }
+    }
   }
 }
 
@@ -1249,6 +1365,15 @@ function stopSessionLoops() {
   if (gameState.rsvpTimeout) clearTimeout(gameState.rsvpTimeout);
   if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
   document.getElementById('notes-container').innerHTML = '';
+
+  if (gameState.ytPlayerReady && gameState.ytPlayer) {
+    try {
+      gameState.ytPlayer.stopVideo();
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+  document.getElementById('yt-player-container').classList.add('hidden');
 }
 
 function endGameSession(completed = true) {
@@ -1384,4 +1509,227 @@ function drawVisualizerFrame() {
   }
 
   requestAnimationFrame(drawVisualizerFrame);
+}
+
+// --- 12. YouTube IFrame Player & Fallback Search API Integration ---
+
+function initYouTubeAPI() {
+  window.onYouTubeIframeAPIReady = function() {
+    gameState.ytPlayer = new YT.Player('youtube-player', {
+      height: '100%',
+      width: '100%',
+      videoId: '',
+      playerVars: {
+        autoplay: 0,
+        controls: 0,
+        rel: 0,
+        disablekb: 1,
+        modestbranding: 1,
+        origin: window.location.origin
+      },
+      events: {
+        onReady: (event) => {
+          gameState.ytPlayerReady = true;
+          event.target.setVolume(gameState.synthVolume * 100);
+        },
+        onStateChange: (event) => {
+          // Keep synced if needed
+        }
+      }
+    });
+  };
+
+  const tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  const firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+}
+
+function extractYoutubeVideoId(url) {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
+async function performYoutubeSearch(query) {
+  if (!query) return;
+
+  const resultsContainer = document.getElementById('yt-search-results');
+  resultsContainer.classList.remove('hidden');
+  resultsContainer.innerHTML = '<div class="admin-notice text-center"><i class="fa-solid fa-spinner fa-spin"></i> Searching YouTube...</div>';
+
+  const videoId = extractYoutubeVideoId(query);
+  if (videoId) {
+    try {
+      const videoInfo = await fetchVideoDetails(videoId);
+      displaySearchResults([videoInfo]);
+    } catch (e) {
+      console.warn("Could not fetch details, displaying fallback URL card", e);
+      displaySearchResults([{
+        id: videoId,
+        title: `YouTube Video (Direct Link)`,
+        channel: `ID: ${videoId}`,
+        thumb: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      }]);
+    }
+    return;
+  }
+
+  try {
+    const results = await searchYoutubeVideos(query);
+    if (results && results.length > 0) {
+      displaySearchResults(results);
+    } else {
+      resultsContainer.innerHTML = '<div class="admin-notice text-center text-danger"><i class="fa-solid fa-triangle-exclamation"></i> No videos found.</div>';
+    }
+  } catch (err) {
+    console.error("Search failed:", err);
+    resultsContainer.innerHTML = `<div class="admin-notice text-center text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Search failed. Check connection or settings.</div>`;
+  }
+}
+
+async function searchYoutubeVideos(query) {
+  const apiKey = gameState.config.youtubeApiKey;
+  
+  if (apiKey) {
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(query)}&type=video&key=${apiKey}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Official API response not OK");
+      const data = await res.json();
+      return data.items.map(item => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        channel: item.snippet.channelTitle,
+        thumb: item.snippet.thumbnails.default.url
+      }));
+    } catch (e) {
+      console.warn("Official YouTube search failed, falling back to Invidious", e);
+    }
+  }
+
+  const invidiousInstances = [
+    'https://yewtu.be',
+    'https://vid.puffyan.us',
+    'https://invidious.projectsegfau.lt',
+    'https://inv.tux.im',
+    'https://invidious.nerdvpn.de'
+  ];
+
+  for (const instance of invidiousInstances) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const searchUrl = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+      const res = await fetch(searchUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        return data.slice(0, 5).map(item => ({
+          id: item.videoId,
+          title: item.title,
+          channel: item.author,
+          thumb: item.videoThumbnails && item.videoThumbnails[0] ? item.videoThumbnails[0].url : `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`
+        }));
+      }
+    } catch (err) {
+      console.warn(`Invidious search instance ${instance} failed, trying next...`, err);
+    }
+  }
+
+  throw new Error("All search options failed");
+}
+
+async function fetchVideoDetails(videoId) {
+  const apiKey = gameState.config.youtubeApiKey;
+  if (apiKey) {
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Official API details failed");
+      const data = await res.json();
+      if (data.items && data.items[0]) {
+        const item = data.items[0];
+        return {
+          id: videoId,
+          title: item.snippet.title,
+          channel: item.snippet.channelTitle,
+          thumb: item.snippet.thumbnails.default.url
+        };
+      }
+    } catch (e) {
+      console.warn("Official YouTube details failed, trying Invidious", e);
+    }
+  }
+
+  const invidiousInstances = [
+    'https://yewtu.be',
+    'https://vid.puffyan.us',
+    'https://invidious.projectsegfau.lt',
+    'https://inv.tux.im',
+    'https://invidious.nerdvpn.de'
+  ];
+
+  for (const instance of invidiousInstances) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const url = `${instance}/api/v1/videos/${videoId}`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) continue;
+      const data = await res.json();
+      return {
+        id: videoId,
+        title: data.title,
+        channel: data.author,
+        thumb: data.videoThumbnails && data.videoThumbnails[0] ? data.videoThumbnails[0].url : `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      };
+    } catch (err) {
+      console.warn(`Invidious details instance ${instance} failed...`);
+    }
+  }
+
+  throw new Error("Could not fetch details from any service");
+}
+
+function displaySearchResults(videos) {
+  const resultsContainer = document.getElementById('yt-search-results');
+  resultsContainer.innerHTML = '';
+  resultsContainer.classList.remove('hidden');
+
+  videos.forEach(video => {
+    const item = document.createElement('div');
+    item.className = 'yt-result-item';
+    item.innerHTML = `
+      <img src="${video.thumb}" alt="thumbnail" onerror="this.src='https://img.youtube.com/vi/${video.id}/hqdefault.jpg'">
+      <div class="yt-result-info">
+        <span class="yt-result-title">${video.title}</span>
+        <span class="yt-result-channel">${video.channel}</span>
+      </div>
+    `;
+    item.addEventListener('click', () => {
+      selectYoutubeVideo(video);
+      resultsContainer.classList.add('hidden');
+    });
+    resultsContainer.appendChild(item);
+  });
+}
+
+function selectYoutubeVideo(video) {
+  gameState.youtubeSelectedVideo = video;
+  
+  const selectedCard = document.getElementById('selected-yt-video-card');
+  const selectedThumb = document.getElementById('selected-yt-thumb');
+  const selectedTitle = document.getElementById('selected-yt-title');
+  const selectedChannel = document.getElementById('selected-yt-channel');
+  
+  selectedThumb.src = video.thumb;
+  selectedThumb.onerror = function() { this.src = `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`; };
+  selectedTitle.textContent = video.title;
+  selectedChannel.textContent = video.channel;
+  
+  selectedCard.classList.remove('hidden');
 }
