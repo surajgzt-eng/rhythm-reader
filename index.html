@@ -65,146 +65,184 @@
   <!-- Main Application Container -->
   <main class="app-container">
 
-    <!-- 1. Setup Screen -->
+    <!-- 1. Setup Screen (Wizard Flow) -->
     <section id="setup-screen" class="setup-card active">
       <h2 class="section-title">Train Your Brain. <span class="highlight-text">Read in Rhythm.</span></h2>
-      <p class="section-desc">Select your reading file, sync it to a beat, and let the words flow. Hit the rhythm lanes in sync with the visual flashes to boost your score.</p>
+      <p class="section-desc">Select your reading material, sync it to musical beats, and boost your reading speed naturally.</p>
       
-      <div class="setup-grid">
-        <!-- Column 1: Text Selection -->
-        <div class="setup-col">
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-file-lines"></i> Select Reading Material</label>
-            <div class="text-presets">
-              <button class="preset-btn active" data-preset="scifi" id="btn-preset-scifi">
-                <i class="fa-solid fa-rocket"></i> Cosmic Horizon (Sci-Fi)
-              </button>
-              <button class="preset-btn" data-preset="quotes" id="btn-preset-quotes">
-                <i class="fa-solid fa-quote-left"></i> Words of Wisdom (Quotes)
-              </button>
-              <button class="preset-btn" data-preset="fairytale" id="btn-preset-fairytale">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> The Magic Soroban (Fairy Tale)
-              </button>
-            </div>
+      <!-- Wizard Progress Dots -->
+      <div class="wizard-steps-indicator">
+        <div class="wizard-step-dot active" data-step="1" id="step-dot-1">
+          <div class="dot-circle">1</div>
+          <div class="dot-label">Reading</div>
+        </div>
+        <div class="wizard-step-dot" data-step="2" id="step-dot-2">
+          <div class="dot-circle">2</div>
+          <div class="dot-label">Soundtrack</div>
+        </div>
+        <div class="wizard-step-dot" data-step="3" id="step-dot-3">
+          <div class="dot-circle">3</div>
+          <div class="dot-label">Speed</div>
+        </div>
+      </div>
+
+      <!-- Wizard Content Panes -->
+      <div class="wizard-panes">
+        
+        <!-- Step 1: Reading Material -->
+        <div class="wizard-pane active" id="wizard-pane-1">
+          <h3 class="wizard-pane-title"><i class="fa-solid fa-file-lines"></i> Select Reading Material</h3>
+          <p class="wizard-pane-desc">Tap one of the options below to choose what to read today:</p>
+          
+          <div class="preset-vertical-list">
+            <button class="wizard-option-btn active" data-preset="scifi" id="btn-preset-scifi">
+              <div class="option-icon"><i class="fa-solid fa-rocket"></i></div>
+              <div class="option-text">
+                <strong>Cosmic Horizon</strong>
+                <span>Sci-Fi space odyssey exploration</span>
+              </div>
+            </button>
+            <button class="wizard-option-btn" data-preset="quotes" id="btn-preset-quotes">
+              <div class="option-icon"><i class="fa-solid fa-quote-left"></i></div>
+              <div class="option-text">
+                <strong>Words of Wisdom</strong>
+                <span>Inspirational quotes and proverbs</span>
+              </div>
+            </button>
+            <button class="wizard-option-btn" data-preset="fairytale" id="btn-preset-fairytale">
+              <div class="option-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+              <div class="option-text">
+                <strong>The Magic Soroban</strong>
+                <span>An ancient mathematical fairy tale</span>
+              </div>
+            </button>
+            <button class="wizard-option-btn" data-preset="custom" id="btn-preset-custom">
+              <div class="option-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+              <div class="option-text">
+                <strong>Write or Paste Custom Text</strong>
+                <span>Insert your own articles, books, or notes</span>
+              </div>
+            </button>
           </div>
 
-          <div class="form-group">
-            <div class="label-header">
-              <label class="form-label"><i class="fa-solid fa-keyboard"></i> Paste Custom Text</label>
-              <span class="badge badge-premium" id="badge-custom-text-premium"><i class="fa-solid fa-crown"></i> Premium Only</span>
-            </div>
-            <div class="textarea-wrapper">
-              <textarea id="textarea-custom-text" placeholder="Paste your articles, books, or notes here..." disabled></textarea>
-              <div id="custom-text-overlay" class="premium-input-overlay">
-                <button class="btn btn-premium-unlock" id="btn-unlock-custom-text"><i class="fa-solid fa-lock"></i> Unlock Custom Texts</button>
-              </div>
-            </div>
+          <!-- Slide-out Custom Text Textarea -->
+          <div id="custom-text-input-container" class="custom-text-input-container hidden">
+            <textarea id="textarea-custom-text" placeholder="Paste your articles, books, or study notes here..."></textarea>
+          </div>
+
+          <div class="wizard-actions">
+            <button class="btn btn-primary btn-next-step" data-current="1">Continue <i class="fa-solid fa-arrow-right"></i></button>
           </div>
         </div>
 
-        <!-- Column 2: Music, Mode & Speed Settings -->
-        <div class="setup-col">
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-music"></i> Background Music Source</label>
-            <div class="music-source-tabs">
-              <button class="source-tab active" id="tab-music-presets" type="button"><i class="fa-solid fa-radio"></i> Built-in Beats</button>
-              <button class="source-tab" id="tab-music-youtube" type="button"><i class="fa-brands fa-youtube"></i> YouTube Song</button>
+        <!-- Step 2: Soundtrack Selection -->
+        <div class="wizard-pane" id="wizard-pane-2">
+          <h3 class="wizard-pane-title"><i class="fa-solid fa-music"></i> Choose Background Soundtrack</h3>
+          <p class="wizard-pane-desc">Listen to real-time procedural synthesizers or stream from YouTube:</p>
+
+          <div class="music-source-tabs">
+            <button class="source-tab active" id="tab-music-presets" type="button"><i class="fa-solid fa-radio"></i> Built-in Beats</button>
+            <button class="source-tab" id="tab-music-youtube" type="button"><i class="fa-brands fa-youtube"></i> YouTube Song</button>
+          </div>
+
+          <!-- Section A: Built-in Presets -->
+          <div id="section-music-presets" class="music-source-section">
+            <div class="preset-vertical-list mt-3">
+              <button class="wizard-option-btn active" data-track="synthwave">
+                <div class="option-icon"><i class="fa-solid fa-radio"></i></div>
+                <div class="option-text">
+                  <strong>Neon Synth</strong>
+                  <span>Energetic 110 BPM cyber beats</span>
+                </div>
+              </button>
+              <button class="wizard-option-btn" data-track="lofi">
+                <div class="option-icon"><i class="fa-solid fa-mug-hot"></i></div>
+                <div class="option-text">
+                  <strong>Chill Lofi</strong>
+                  <span>Relaxing 85 BPM study beats</span>
+                </div>
+              </button>
+              <button class="wizard-option-btn" data-track="ambient">
+                <div class="option-icon"><i class="fa-solid fa-wind"></i></div>
+                <div class="option-text">
+                  <strong>Space Ambient</strong>
+                  <span>Slow 70 BPM deep cosmic pads</span>
+                </div>
+              </button>
+              <button class="wizard-option-btn" data-track="custom" id="btn-option-custom-audio">
+                <div class="option-icon"><i class="fa-solid fa-file-audio"></i></div>
+                <div class="option-text">
+                  <strong>Upload Local MP3 Track</strong>
+                  <span>Upload and listen to your own audio files</span>
+                </div>
+              </button>
             </div>
             
-            <!-- Section A: Built-in Presets -->
-            <div id="section-music-presets" class="music-source-section">
-              <div class="music-presets mt-2">
-                <button class="music-btn active" data-track="synthwave">
-                  <i class="fa-solid fa-radio"></i> Neon Synth (110 BPM)
-                </button>
-                <button class="music-btn" data-track="lofi">
-                  <i class="fa-solid fa-mug-hot"></i> Chill Lofi (85 BPM)
-                </button>
-                <button class="music-btn" data-track="ambient">
-                  <i class="fa-solid fa-wind"></i> Space Ambient (70 BPM)
-                </button>
+            <div class="file-upload-wrapper mt-3 hidden" id="div-upload-custom-audio-container">
+              <input type="file" id="input-custom-audio" accept="audio/*" style="display: none;">
+              <span id="lbl-upload-filename" class="custom-audio-filename"></span>
+            </div>
+          </div>
+
+          <!-- Section B: YouTube Search -->
+          <div id="section-music-youtube" class="music-source-section hidden">
+            <div class="youtube-search-wrapper mt-3">
+              <div class="search-input-group">
+                <input type="text" id="input-yt-search" placeholder="Search song title or paste YouTube link...">
+                <button id="btn-yt-search" class="btn btn-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
               </div>
               
-              <!-- Custom MP3 Upload (Premium) -->
-              <div class="file-upload-wrapper mt-3">
-                <div class="label-header">
-                  <span class="upload-label"><i class="fa-solid fa-file-audio"></i> Upload Custom Track (.mp3)</span>
-                  <span class="badge badge-premium"><i class="fa-solid fa-crown"></i> Premium</span>
+              <!-- Active Selected Video Box -->
+              <div id="selected-yt-video-card" class="selected-video-card hidden">
+                <img id="selected-yt-thumb" src="" alt="Thumbnail">
+                <div class="video-info">
+                  <span class="video-label">Selected Track:</span>
+                  <span id="selected-yt-title" class="video-title">No song selected</span>
+                  <span id="selected-yt-channel" class="video-channel"></span>
                 </div>
-                <div class="upload-container-disabled" id="div-upload-custom-audio-container">
-                  <input type="file" id="input-custom-audio" accept="audio/*" disabled style="display: none;">
-                  <label for="input-custom-audio" class="upload-box-disabled" id="lbl-upload-box">
-                    <i class="fa-solid fa-lock"></i> Upload Custom MP3
-                  </label>
-                </div>
+                <button id="btn-clear-yt-selection" class="btn-clear-selection" type="button"><i class="fa-solid fa-xmark"></i></button>
               </div>
-            </div>
 
-            <!-- Section B: YouTube Search & Import -->
-            <div id="section-music-youtube" class="music-source-section hidden">
-              <div class="youtube-search-wrapper mt-2">
-                <div class="search-input-group">
-                  <input type="text" id="input-yt-search" placeholder="Search song or paste URL...">
-                  <button id="btn-yt-search" class="btn btn-secondary" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
-                </div>
-                
-                <!-- Active Selected Video Box -->
-                <div id="selected-yt-video-card" class="selected-video-card hidden">
-                  <img id="selected-yt-thumb" src="" alt="Thumbnail">
-                  <div class="video-info">
-                    <span class="video-label">Selected Track:</span>
-                    <span id="selected-yt-title" class="video-title">No song selected</span>
-                    <span id="selected-yt-channel" class="video-channel"></span>
-                  </div>
-                  <button id="btn-clear-yt-selection" class="btn-clear-selection" type="button"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-
-                <!-- Search Results Box -->
-                <div id="yt-search-results" class="yt-search-results-container hidden">
-                  <!-- Video items will be injected here -->
-                </div>
+              <!-- Search Results Box -->
+              <div id="yt-search-results" class="yt-search-results-container hidden">
+                <!-- Video items will be injected here -->
               </div>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-gamepad"></i> Training Mode</label>
-            <div class="mode-selector">
-              <button class="mode-btn active" data-mode="active" id="btn-mode-active">
-                <div class="mode-icon"><i class="fa-solid fa-hand-pointer"></i></div>
-                <div class="mode-text">
-                  <strong>Active Game</strong>
-                  <span>Tap lanes to the rhythm to score points</span>
-                </div>
-              </button>
-              <button class="mode-btn" data-mode="passive" id="btn-mode-passive">
-                <div class="mode-icon"><i class="fa-solid fa-eye"></i></div>
-                <div class="mode-text">
-                  <strong>Passive Trainer</strong>
-                  <span>Pure RSVP speed reading with visual beats</span>
-                </div>
-              </button>
-            </div>
+          <div class="wizard-actions mt-4">
+            <button class="btn btn-secondary-outline btn-prev-step" data-current="2"><i class="fa-solid fa-arrow-left"></i> Back</button>
+            <button class="btn btn-primary btn-next-step" data-current="2">Continue <i class="fa-solid fa-arrow-right"></i></button>
           </div>
+        </div>
 
-          <div class="form-group">
+        <!-- Step 3: Speed & Launch -->
+        <div class="wizard-pane" id="wizard-pane-3">
+          <h3 class="wizard-pane-title"><i class="fa-solid fa-gauge-high"></i> Select Speed & Launch</h3>
+          <p class="wizard-pane-desc">Set your WPM speed. Words flash one by one, accelerating every 30 seconds:</p>
+
+          <div class="form-group speed-slider-container mt-4">
             <div class="slider-header">
-              <label class="form-label"><i class="fa-solid fa-gauge-high"></i> Starting Speed (WPM)</label>
+              <label class="form-label">Starting Speed</label>
               <span id="wpm-display" class="speed-badge">200 WPM</span>
             </div>
             <input type="range" id="input-wpm-slider" min="150" max="600" step="25" value="200" class="speed-slider">
             <div class="slider-labels">
-              <span>Slow (150)</span>
-              <span>Fast (350)</span>
-              <span>Extreme (600)</span>
+              <span>Slow (150 WPM)</span>
+              <span>Fast (350 WPM)</span>
+              <span>Extreme (600 WPM)</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      <button id="btn-start-game" class="btn btn-primary btn-block btn-large mt-4">
-        <i class="fa-solid fa-play"></i> Launch Rhythm Session
-      </button>
+          <div class="wizard-actions mt-5">
+            <button class="btn btn-secondary-outline btn-prev-step" data-current="3"><i class="fa-solid fa-arrow-left"></i> Back</button>
+            <button id="btn-start-game" class="btn btn-primary btn-large">
+              <i class="fa-solid fa-play"></i> Launch Rhythm Session
+            </button>
+          </div>
+        </div>
+
+      </div>
     </section>
 
     <!-- 2. Active Game Screen -->
@@ -218,14 +256,6 @@
         <div class="hud-item lap-hud">
           <span class="hud-label">CURRENT LAP</span>
           <span id="hud-lap" class="hud-value">Lap 1</span>
-        </div>
-        <div class="hud-item score-hud active-only">
-          <span class="hud-label">SCORE</span>
-          <span id="hud-score" class="hud-value">00000</span>
-        </div>
-        <div class="hud-item combo-hud active-only">
-          <span class="hud-label">COMBO</span>
-          <span id="hud-combo" class="hud-value">x1</span>
         </div>
         <div class="hud-item timer-hud">
           <span class="hud-label">LAP SECONDS</span>
@@ -245,47 +275,12 @@
         </div>
       </div>
 
-      <!-- Dynamic Visualizer/Rhythm Lanes -->
-      <div id="rhythm-board" class="rhythm-board active-only">
-        <!-- Progress bar representing total words read -->
+      <!-- RSVP Reading Progress & Word Counter directly beneath the RSVP box -->
+      <div class="rsvp-progress-container">
         <div class="text-progress-wrapper">
           <div id="progress-bar-fill" class="progress-bar-fill"></div>
         </div>
-
-        <div class="lanes-container">
-          <!-- Column Lanes -->
-          <div class="lane" data-lane="0">
-            <div class="lane-glow"></div>
-            <div id="lane-hit-flash-0" class="lane-hit-flash"></div>
-          </div>
-          <div class="lane" data-lane="1">
-            <div class="lane-glow"></div>
-            <div id="lane-hit-flash-1" class="lane-hit-flash"></div>
-          </div>
-          <div class="lane" data-lane="2">
-            <div class="lane-glow"></div>
-            <div id="lane-hit-flash-2" class="lane-hit-flash"></div>
-          </div>
-          
-          <!-- Falling notes will be dynamically rendered here as DOM elements -->
-          <div id="notes-container" class="notes-container"></div>
-        </div>
-
-        <!-- Target baseline hit zones -->
-        <div class="rhythm-targets">
-          <button class="target-button" data-key="a" id="btn-target-a">
-            <span class="key-label">A</span>
-            <span class="tap-label">Tap Left</span>
-          </button>
-          <button class="target-button" data-key="s" id="btn-target-s">
-            <span class="key-label">S</span>
-            <span class="tap-label">Tap Center</span>
-          </button>
-          <button class="target-button" data-key="d" id="btn-target-d">
-            <span class="key-label">D</span>
-            <span class="tap-label">Tap Right</span>
-          </button>
-        </div>
+        <div id="hud-word-counter" class="rsvp-word-counter">Word 0 / 0</div>
       </div>
 
       <!-- Game Controllers Dock -->
@@ -325,18 +320,6 @@
         <div class="stat-card">
           <span class="stat-label">Total Words Read</span>
           <span id="stat-words-read" class="stat-value">0</span>
-        </div>
-        <div class="stat-card active-only">
-          <span class="stat-label">Rhythm Accuracy</span>
-          <span id="stat-accuracy" class="stat-value">0%</span>
-        </div>
-        <div class="stat-card active-only">
-          <span class="stat-label">Highest Combo Streak</span>
-          <span id="stat-combo" class="stat-value">x0</span>
-        </div>
-        <div class="stat-card active-only">
-          <span class="stat-label">Final Score</span>
-          <span id="stat-final-score" class="stat-value glow-text">0</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Training Duration</span>

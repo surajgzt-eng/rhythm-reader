@@ -178,36 +178,118 @@ function recordPlayedMatch() {
 }
 
 // --- 3. UI Interactions & Event Listeners ---
+function isPremiumOrDay1() {
+  if (gameState.isPremium) return true;
+  const hoursElapsed = (Date.now() - gameState.trial.start) / (1000 * 60 * 60);
+  return hoursElapsed <= 24;
+}
+
+let currentWizardStep = 1;
+
+function goToStep(step) {
+  if (step < 1 || step > 3) return;
+  currentWizardStep = step;
+  
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById(`step-dot-${i}`);
+    const pane = document.getElementById(`wizard-pane-${i}`);
+    if (i <= step) {
+      dot.classList.add('active');
+    } else {
+      dot.classList.remove('active');
+    }
+    if (i === step) {
+      pane.classList.add('active');
+    } else {
+      pane.classList.remove('active');
+    }
+  }
+}
+
 function setupUIEventListeners() {
-  // Preset Texts Selection
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  // Wizard dots click
+  document.querySelectorAll('.wizard-step-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const step = parseInt(dot.dataset.step);
+      goToStep(step);
     });
   });
 
-  // Music Selection
-  document.querySelectorAll('.music-btn').forEach(btn => {
+  // Wizard Navigation Action Buttons
+  document.querySelectorAll('.btn-next-step').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.music-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      gameState.synthTrack = btn.dataset.track;
+      const current = parseInt(btn.dataset.current);
+      goToStep(current + 1);
+    });
+  });
+  document.querySelectorAll('.btn-prev-step').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const current = parseInt(btn.dataset.current);
+      goToStep(current - 1);
     });
   });
 
-  // Training Mode Toggle
-  const btnModeActive = document.getElementById('btn-mode-active');
-  const btnModePassive = document.getElementById('btn-mode-passive');
-  btnModeActive.addEventListener('click', () => {
-    btnModeActive.classList.add('active');
-    btnModePassive.classList.remove('active');
-    gameState.mode = 'active';
+  // Preset Texts Selection (Step 1)
+  document.querySelectorAll('.wizard-option-btn[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      if (preset === 'custom') {
+        if (!isPremiumOrDay1()) {
+          openModal('modal-subscription');
+          return;
+        }
+        document.querySelectorAll('.wizard-option-btn[data-preset]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('custom-text-input-container').classList.remove('hidden');
+      } else {
+        document.querySelectorAll('.wizard-option-btn[data-preset]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('custom-text-input-container').classList.add('hidden');
+        // Auto-advance
+        setTimeout(() => goToStep(2), 250);
+      }
+    });
   });
-  btnModePassive.addEventListener('click', () => {
-    btnModePassive.classList.add('active');
-    btnModeActive.classList.remove('active');
-    gameState.mode = 'passive';
+
+  // Soundtrack Selection (Step 2)
+  document.querySelectorAll('.wizard-option-btn[data-track]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const track = btn.dataset.track;
+      if (track === 'custom') {
+        if (!isPremiumOrDay1()) {
+          openModal('modal-subscription');
+          return;
+        }
+        document.querySelectorAll('.wizard-option-btn[data-track]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        gameState.synthTrack = 'custom';
+        document.getElementById('div-upload-custom-audio-container').classList.remove('hidden');
+        document.getElementById('input-custom-audio').click();
+      } else {
+        document.querySelectorAll('.wizard-option-btn[data-track]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        gameState.synthTrack = track;
+        document.getElementById('div-upload-custom-audio-container').classList.add('hidden');
+        // Auto-advance
+        setTimeout(() => goToStep(3), 250);
+      }
+    });
+  });
+
+  // Custom Audio Uploader
+  document.getElementById('input-custom-audio').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      document.getElementById('lbl-upload-filename').textContent = file.name;
+      const objectURL = URL.createObjectURL(file);
+      if (gameState.customAudio) {
+        gameState.customAudio.pause();
+      }
+      gameState.customAudio = new Audio(objectURL);
+      gameState.customAudio.volume = gameState.synthVolume;
+      // Auto-advance
+      setTimeout(() => goToStep(3), 250);
+    }
   });
 
   // WPM Slider Adjust
@@ -253,7 +335,6 @@ function setupUIEventListeners() {
 
   // Subscription Modal Toggle
   document.getElementById('btn-close-sub-modal').addEventListener('click', () => closeModal('modal-subscription'));
-  document.getElementById('btn-unlock-custom-text').addEventListener('click', () => openModal('modal-subscription'));
 
   // Select Pricing Plan
   document.querySelectorAll('.select-plan-btn').forEach(btn => {
@@ -314,10 +395,12 @@ function setupUIEventListeners() {
     document.getElementById('summary-screen').classList.add('hidden');
     document.getElementById('setup-screen').classList.remove('active'); // resets WPM selection
     document.getElementById('setup-screen').classList.add('active');
+    goToStep(1);
   });
   document.getElementById('btn-summary-gohome').addEventListener('click', () => {
     document.getElementById('summary-screen').classList.add('hidden');
     document.getElementById('setup-screen').classList.add('active');
+    goToStep(1);
   });
 
   // WPM Manual Adjustments in Game
@@ -327,6 +410,9 @@ function setupUIEventListeners() {
   // Volume slider adjust
   document.getElementById('input-volume-slider').addEventListener('input', (e) => {
     gameState.synthVolume = parseFloat(e.target.value);
+    if (gameState.customAudio) {
+      gameState.customAudio.volume = gameState.synthVolume;
+    }
     if (gameState.ytPlayerReady && gameState.ytPlayer) {
       try {
         gameState.ytPlayer.setVolume(gameState.synthVolume * 100);
@@ -334,17 +420,6 @@ function setupUIEventListeners() {
         console.warn(err);
       }
     }
-  });
-
-  // Rhythm target button triggers (Keyboard support in section 5)
-  document.querySelectorAll('.target-button').forEach(btn => {
-    btn.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      handleTargetPress(btn.dataset.key);
-    });
-    btn.addEventListener('mousedown', () => {
-      handleTargetPress(btn.dataset.key);
-    });
   });
 
   // Share Reddit Card Clipboard trigger
@@ -494,13 +569,6 @@ function updateAuthUI() {
   const userProfile = document.getElementById('user-profile');
   const adminToggle = document.getElementById('btn-admin-panel-toggle');
   
-  // Premium Features Locks/Unlocks
-  const customTextArea = document.getElementById('textarea-custom-text');
-  const customTextOverlay = document.getElementById('custom-text-overlay');
-  const uploadContainer = document.getElementById('div-upload-custom-audio-container');
-  const uploadBox = document.getElementById('lbl-upload-box');
-  const customAudioInput = document.getElementById('input-custom-audio');
-  
   if (gameState.user) {
     btnLogin.classList.add('hidden');
     userProfile.classList.remove('hidden');
@@ -512,25 +580,9 @@ function updateAuthUI() {
     if (gameState.isPremium) {
       subLabel.textContent = "Premium Plan";
       subLabel.className = "sub-status premium";
-      
-      // Unlock premium features
-      customTextArea.removeAttribute('disabled');
-      customTextOverlay.classList.add('hidden');
-      uploadContainer.className = "file-upload-wrapper";
-      uploadBox.className = "upload-box-enabled";
-      uploadBox.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Custom MP3';
-      customAudioInput.removeAttribute('disabled');
     } else {
       subLabel.textContent = "Free Plan";
       subLabel.className = "sub-status free";
-      
-      // Lock premium features
-      customTextArea.setAttribute('disabled', 'true');
-      customTextOverlay.classList.remove('hidden');
-      uploadContainer.className = "file-upload-wrapper mt-3";
-      uploadBox.className = "upload-box-disabled";
-      uploadBox.innerHTML = '<i class="fa-solid fa-lock"></i> Upload Custom MP3';
-      customAudioInput.setAttribute('disabled', 'true');
     }
 
     // Owner check: suraj.gzt@gmail.com unlocks Admin Panel gear icon!
@@ -544,14 +596,6 @@ function updateAuthUI() {
     btnLogin.classList.remove('hidden');
     userProfile.classList.add('hidden');
     adminToggle.classList.add('hidden');
-    
-    // Lock premium features when logged out
-    customTextArea.setAttribute('disabled', 'true');
-    customTextOverlay.classList.remove('hidden');
-    uploadContainer.className = "file-upload-wrapper mt-3";
-    uploadBox.className = "upload-box-disabled";
-    uploadBox.innerHTML = '<i class="fa-solid fa-lock"></i> Upload Custom MP3';
-    customAudioInput.setAttribute('disabled', 'true');
   }
 }
 
@@ -810,152 +854,19 @@ function adjustWPM(delta) {
 }
 
 // --- 8. Rhythm Gameplay Notes Controller ---
-function addGameNote(wordObj, wordIndex) {
-  if (gameState.mode !== 'active') return;
-
-  const notesContainer = document.getElementById('notes-container');
-  const noteEl = document.createElement('div');
-  noteEl.className = 'falling-note';
-  noteEl.id = `note-${wordIndex}`;
-  noteEl.textContent = wordObj.raw.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, ""); // clean word
-  
-  // Positioning
-  const lanePercent = [8.33, 41.66, 75]; // center percentages for 3 lanes
-  noteEl.style.left = `calc(${lanePercent[wordObj.lane]}% + 2.5%)`;
-  noteEl.style.top = '-50px'; // start above canvas bounds
-
-  notesContainer.appendChild(noteEl);
-
-  gameState.notes.push({
-    element: noteEl,
-    lane: wordObj.lane,
-    wordIndex: wordIndex,
-    yPos: -50,
-    hit: false
-  });
-}
-
-// Animation loop for falling notes
-function updateFallingNotes() {
-  if (!gameState.isActive) return;
-
-  const containerHeight = 250; // lanes height
-  const baseSpeed = gameState.noteSpeed * (gameState.wpm / 200); // scale speed with WPM
-
-  gameState.notes.forEach((note, index) => {
-    note.yPos += baseSpeed;
-    note.element.style.transform = `translateY(${note.yPos}px)`;
-
-    // Check if it crosses target threshold without hits
-    if (note.yPos > gameState.targetLineY + 25 && !note.hit) {
-      note.hit = true;
-      note.element.classList.add('missed');
-      
-      // Miss penalty
-      if (gameState.mode === 'active') {
-        triggerMissFeedback(note.lane);
-      }
-    }
-  });
-
-  // Remove elements scrolled out of board
-  gameState.notes = gameState.notes.filter(note => {
-    if (note.yPos > containerHeight) {
-      note.element.remove();
-      return false;
-    }
-    return true;
-  });
-
-  gameState.animationFrameId = requestAnimationFrame(updateFallingNotes);
-}
-
-// Handle key presses & Mobile lane taps
-function handleTargetPress(key) {
-  const laneMap = { 'a': 0, 's': 1, 'd': 2 };
-  const targetLane = laneMap[key];
-  if (targetLane === undefined || !gameState.isActive || gameState.mode !== 'active') return;
-
-  // Add click animation classes to targets
-  const btn = document.querySelector(`.target-button[data-key="${key}"]`);
-  btn.classList.add('pressed');
-  setTimeout(() => btn.classList.remove('pressed'), 100);
-
-  // Pulse lane hit highlights
-  const flash = document.getElementById(`lane-hit-flash-${targetLane}`);
-  flash.classList.add('hit');
-  setTimeout(() => flash.classList.remove('hit'), 150);
-
-  // Search closest unhit note in that lane
-  let closestNote = null;
-  let minDiff = 999;
-  
-  gameState.notes.forEach(note => {
-    if (note.lane === targetLane && !note.hit) {
-      const diff = Math.abs(note.yPos - gameState.targetLineY);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestNote = note;
-      }
-    }
-  });
-
-  if (closestNote) {
-    gameState.laneAttempts++;
-    closestNote.hit = true;
-    
-    // Precise hit ranges
-    if (minDiff <= 25) { // Perfect
-      closestNote.element.classList.add('hit-perfect');
-      triggerScoreUp(100, "Perfect!");
-      gameState.laneHits++;
-    } else if (minDiff <= 55) { // Good
-      closestNote.element.classList.add('hit-good');
-      triggerScoreUp(50, "Good");
-      gameState.laneHits++;
-    } else { // Bad/Miss
-      closestNote.element.classList.add('missed');
-      triggerMissFeedback(targetLane);
-    }
-  } else {
-    // Blank tap counts as a miss attempt
-    gameState.laneAttempts++;
-    triggerMissFeedback(targetLane);
-  }
-}
-
 // Keyboard keydowns listeners
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'a' || e.key === 's' || e.key === 'd') {
-    handleTargetPress(e.key);
-  }
-  // Spacebar to pause/resume
+  // Spacebar to play/pause
   if (e.key === ' ' && gameState.isActive) {
     e.preventDefault();
     togglePauseGame();
   }
-});
-
-function triggerScoreUp(points, ratingText) {
-  gameState.score += points * gameState.combo;
-  gameState.combo++;
-  if (gameState.combo > gameState.maxCombo) {
-    gameState.maxCombo = gameState.combo;
+  // 'R' to restart session
+  if ((e.key === 'r' || e.key === 'R') && gameState.isActive) {
+    e.preventDefault();
+    restartSession();
   }
-  
-  // Visual feedback
-  document.getElementById('hud-score').textContent = String(gameState.score).padStart(5, '0');
-  document.getElementById('hud-combo').textContent = `x${gameState.combo}`;
-  
-  // Play synthetic feedback chirp
-  playSynthFeedback(true);
-}
-
-function triggerMissFeedback(lane) {
-  gameState.combo = 1;
-  document.getElementById('hud-combo').textContent = 'x1';
-  playSynthFeedback(false);
-}
+});
 
 // --- 9. Music / Audio Synth Generator (Web Audio API) ---
 function initAudio() {
@@ -1133,11 +1044,11 @@ function launchGameSession() {
   
   // Read configured inputs
   let selectedText = "";
-  const presetBtn = document.querySelector('.preset-btn.active');
+  const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
   const customTextArea = document.getElementById('textarea-custom-text');
   
-  if (gameState.isPremium && customTextArea.value.trim() !== '') {
-    selectedText = customTextArea.value.trim();
+  if (presetBtn && presetBtn.dataset.preset === 'custom') {
+    selectedText = customTextArea.value.trim() || textPresets.scifi;
   } else if (presetBtn) {
     selectedText = textPresets[presetBtn.dataset.preset];
   } else {
@@ -1173,28 +1084,25 @@ function launchGameSession() {
   // Setup UI visibility
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('game-screen').classList.remove('hidden');
-  
-  // Toggle columns if mode is active vs passive
-  if (gameState.mode === 'active') {
-    document.querySelectorAll('.active-only').forEach(el => el.classList.remove('hidden'));
-    document.getElementById('notes-container').innerHTML = ''; // reset board
-    updateFallingNotes();
-  } else {
-    document.querySelectorAll('.active-only').forEach(el => el.classList.add('hidden'));
-  }
 
   // Update HUD
   document.getElementById('hud-wpm').textContent = gameState.wpm;
   document.getElementById('hud-lap').textContent = `Lap ${gameState.lap}`;
-  document.getElementById('hud-score').textContent = '00000';
-  document.getElementById('hud-combo').textContent = 'x1';
   document.getElementById('hud-timer').textContent = `${gameState.lapTimer}s`;
   document.getElementById('progress-bar-fill').style.width = '0%';
+  document.getElementById('hud-word-counter').textContent = `Word 0 / ${gameState.words.length}`;
 
   gameState.startTime = Date.now();
   
   // Launch loops
-  startSynthLoop();
+  if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
+    if (gameState.customAudio) {
+      gameState.customAudio.currentTime = 0;
+      gameState.customAudio.play();
+    }
+  } else {
+    startSynthLoop();
+  }
   startTimers();
   triggerRsvpWordFlash();
 
@@ -1290,17 +1198,16 @@ function triggerRsvpWordFlash() {
     rsvpBox.innerHTML = `<span class="rsvp-prefix"></span><span class="rsvp-focus">${wordObj.raw}</span><span class="rsvp-suffix"></span>`;
   }
 
-  // Draw note in rhythm lanes
-  addGameNote(wordObj, gameState.currentWordIndex);
-
   gameState.totalWordsRead++;
   
+  // Update progress count & bar
+  document.getElementById('hud-word-counter').textContent = `Word ${gameState.currentWordIndex + 1} / ${gameState.words.length}`;
+  
   // Calculate Progress Fill percentage
-  const pct = (gameState.currentWordIndex / gameState.words.length) * 100;
+  const pct = ((gameState.currentWordIndex + 1) / gameState.words.length) * 100;
   document.getElementById('progress-bar-fill').style.width = `${pct}%`;
 
   // Calculate timing interval (ms per word)
-  // WPM formula: ms_per_word = (60 / WPM) * 1000
   const baseInterval = (60 / gameState.wpm) * 1000;
   const nextWordDelay = baseInterval * wordObj.extraDelay;
 
@@ -1317,7 +1224,12 @@ function togglePauseGame() {
     // Pause
     gameState.isActive = false;
     pauseBtn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
-    stopSynthLoop();
+    
+    if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
+      if (gameState.customAudio) gameState.customAudio.pause();
+    } else {
+      stopSynthLoop();
+    }
 
     if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
       try {
@@ -1330,9 +1242,14 @@ function togglePauseGame() {
     // Resume
     gameState.isActive = true;
     pauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
-    startSynthLoop();
+    
+    if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
+      if (gameState.customAudio) gameState.customAudio.play();
+    } else {
+      startSynthLoop();
+    }
+    
     triggerRsvpWordFlash();
-    updateFallingNotes();
 
     if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
       try {
@@ -1360,11 +1277,14 @@ function exitSession() {
 
 function stopSessionLoops() {
   gameState.isActive = false;
+  if (gameState.customAudio) {
+    gameState.customAudio.pause();
+    gameState.customAudio.currentTime = 0;
+  }
   stopSynthLoop();
   if (gameState.timerInterval) clearInterval(gameState.timerInterval);
   if (gameState.rsvpTimeout) clearTimeout(gameState.rsvpTimeout);
   if (gameState.animationFrameId) cancelAnimationFrame(gameState.animationFrameId);
-  document.getElementById('notes-container').innerHTML = '';
 
   if (gameState.ytPlayerReady && gameState.ytPlayer) {
     try {
@@ -1384,11 +1304,6 @@ function endGameSession(completed = true) {
   document.getElementById('stat-peak-wpm').textContent = `${gameState.wpm} WPM`;
   document.getElementById('stat-words-read').textContent = gameState.totalWordsRead;
   
-  const accuracy = gameState.laneAttempts > 0 ? Math.floor((gameState.laneHits / gameState.laneAttempts) * 100) : 0;
-  document.getElementById('stat-accuracy').textContent = `${accuracy}%`;
-  document.getElementById('stat-combo').textContent = `x${gameState.maxCombo}`;
-  document.getElementById('stat-final-score').textContent = gameState.score;
-  
   // Calculate formatted elapsed duration
   const min = Math.floor(gameState.elapsedTime / 60);
   const sec = gameState.elapsedTime % 60;
@@ -1402,18 +1317,15 @@ function endGameSession(completed = true) {
 function copyRedditShareCard() {
   const wpm = gameState.wpm;
   const words = gameState.totalWordsRead;
-  const score = gameState.score;
-  const accuracy = gameState.laneAttempts > 0 ? Math.floor((gameState.laneHits / gameState.laneAttempts) * 100) : 0;
-  const modeText = gameState.mode === 'active' ? `Active Rhythm Mode` : `Passive RSVP Mode`;
+  const modeText = `Passive RSVP Mode`;
   
   const shareText = `🚀 I just trained my speed reading WPM with Rhythm Reader!
   
 * **Peak WPM Speed:** ${wpm} WPM (Lap ${gameState.lap})
 * **Words Read:** ${words} Words
 * **Game Mode:** ${modeText}
-${gameState.mode === 'active' ? `* **Rhythm Accuracy:** ${accuracy}% | **Score:** ${score} pts` : ''}
 
-Improve your reading focus, vocabulary retention, and reading speed using falling lanes and synthesized music beats!
+Improve your reading focus, vocabulary retention, and reading speed using synchronized music beats!
 
 Play it free on GitHub Pages: https://surajgzt-eng.github.io/rhythm-reader/`;
 
