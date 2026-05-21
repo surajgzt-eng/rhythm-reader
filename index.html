@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhythm Reader | Gamified Speed Reading & Rhythm Trainer</title>
+  <meta name="description" content="Improve your reading speed and cognitive focus with Rhythm Reader. Read words synced to procedural musical beats, hit rhythm lanes, and track your WPM.">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: Outfit & Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-mode">
+
+  <!-- Audio reactive background canvas -->
+  <canvas id="bg-visualizer" class="visualizer-canvas"></canvas>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo"><i class="fa-solid fa-bolt-lightning"></i></div>
+        <span class="brand-name">Rhythm<span class="glow-text">Reader</span></span>
+      </div>
+
+      <div class="header-actions">
+        <!-- Trial Status Badge -->
+        <div id="trial-badge" class="trial-badge status-day1">
+          <i class="fa-solid fa-clock"></i> <span id="trial-badge-text">Day 1: Unlimited Trial</span>
+        </div>
+
+        <!-- Google User Profile / Login -->
+        <div id="auth-section">
+          <button id="btn-google-login" class="btn btn-auth">
+            <img src="https://lh3.googleusercontent.com/COxitDO29yUbo07aHBwZPqeeZ4Vj55J823zw1R53447v783PvI01Bz4g1IGZ4rId56g=s50" alt="Google Logo" class="google-logo">
+            <span>Login with Gmail</span>
+          </button>
+          
+          <div id="user-profile" class="user-profile hidden">
+            <img id="user-avatar" src="" alt="User Avatar" class="user-avatar">
+            <div class="user-info">
+              <span id="user-display-name" class="user-name">Loading...</span>
+              <span id="user-sub-status" class="sub-status free">Free Plan</span>
+            </div>
+            <button id="btn-logout" class="btn-icon-only" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+          </div>
+        </div>
+
+        <!-- Admin Control Toggle (shown for stemabacus393@gmail.com) -->
+        <button id="btn-admin-panel-toggle" class="btn-icon-only hidden" title="Admin Settings"><i class="fa-solid fa-sliders"></i></button>
+        
+        <!-- General Settings Toggle -->
+        <button id="btn-settings-toggle" class="btn-icon-only" title="Game Settings"><i class="fa-solid fa-gear"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Container -->
+  <main class="app-container">
+
+    <!-- 1. Setup Screen -->
+    <section id="setup-screen" class="setup-card active">
+      <h2 class="section-title">Train Your Brain. <span class="highlight-text">Read in Rhythm.</span></h2>
+      <p class="section-desc">Select your reading file, sync it to a beat, and let the words flow. Hit the rhythm lanes in sync with the visual flashes to boost your score.</p>
+      
+      <div class="setup-grid">
+        <!-- Column 1: Text Selection -->
+        <div class="setup-col">
+          <div class="form-group">
+            <label class="form-label"><i class="fa-solid fa-file-lines"></i> Select Reading Material</label>
+            <div class="text-presets">
+              <button class="preset-btn active" data-preset="scifi" id="btn-preset-scifi">
+                <i class="fa-solid fa-rocket"></i> Cosmic Horizon (Sci-Fi)
+              </button>
+              <button class="preset-btn" data-preset="quotes" id="btn-preset-quotes">
+                <i class="fa-solid fa-quote-left"></i> Words of Wisdom (Quotes)
+              </button>
+              <button class="preset-btn" data-preset="fairytale" id="btn-preset-fairytale">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> The Magic Soroban (Fairy Tale)
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-header">
+              <label class="form-label"><i class="fa-solid fa-keyboard"></i> Paste Custom Text</label>
+              <span class="badge badge-premium" id="badge-custom-text-premium"><i class="fa-solid fa-crown"></i> Premium Only</span>
+            </div>
+            <div class="textarea-wrapper">
+              <textarea id="textarea-custom-text" placeholder="Paste your articles, books, or notes here..." disabled></textarea>
+              <div id="custom-text-overlay" class="premium-input-overlay">
+                <button class="btn btn-premium-unlock" id="btn-unlock-custom-text"><i class="fa-solid fa-lock"></i> Unlock Custom Texts</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: Music, Mode & Speed Settings -->
+        <div class="setup-col">
+          <div class="form-group">
+            <label class="form-label"><i class="fa-solid fa-music"></i> Choose Background Rhythm</label>
+            <div class="music-presets">
+              <button class="music-btn active" data-track="synthwave">
+                <i class="fa-solid fa-radio"></i> Neon Synth (110 BPM)
+              </button>
+              <button class="music-btn" data-track="lofi">
+                <i class="fa-solid fa-mug-hot"></i> Chill Lofi (85 BPM)
+              </button>
+              <button class="music-btn" data-track="ambient">
+                <i class="fa-solid fa-wind"></i> Space Ambient (70 BPM)
+              </button>
+            </div>
+            
+            <!-- Custom MP3 Upload (Premium) -->
+            <div class="file-upload-wrapper mt-3">
+              <div class="label-header">
+                <span class="upload-label"><i class="fa-solid fa-file-audio"></i> Upload Custom Track (.mp3)</span>
+                <span class="badge badge-premium"><i class="fa-solid fa-crown"></i> Premium</span>
+              </div>
+              <div class="upload-container-disabled" id="div-upload-custom-audio-container">
+                <input type="file" id="input-custom-audio" accept="audio/*" disabled style="display: none;">
+                <label for="input-custom-audio" class="upload-box-disabled" id="lbl-upload-box">
+                  <i class="fa-solid fa-lock"></i> Upload Custom MP3
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label"><i class="fa-solid fa-gamepad"></i> Training Mode</label>
+            <div class="mode-selector">
+              <button class="mode-btn active" data-mode="active" id="btn-mode-active">
+                <div class="mode-icon"><i class="fa-solid fa-hand-pointer"></i></div>
+                <div class="mode-text">
+                  <strong>Active Game</strong>
+                  <span>Tap lanes to the rhythm to score points</span>
+                </div>
+              </button>
+              <button class="mode-btn" data-mode="passive" id="btn-mode-passive">
+                <div class="mode-icon"><i class="fa-solid fa-eye"></i></div>
+                <div class="mode-text">
+                  <strong>Passive Trainer</strong>
+                  <span>Pure RSVP speed reading with visual beats</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="slider-header">
+              <label class="form-label"><i class="fa-solid fa-gauge-high"></i> Starting Speed (WPM)</label>
+              <span id="wpm-display" class="speed-badge">200 WPM</span>
+            </div>
+            <input type="range" id="input-wpm-slider" min="150" max="600" step="25" value="200" class="speed-slider">
+            <div class="slider-labels">
+              <span>Slow (150)</span>
+              <span>Fast (350)</span>
+              <span>Extreme (600)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-start-game" class="btn btn-primary btn-block btn-large mt-4">
+        <i class="fa-solid fa-play"></i> Launch Rhythm Session
+      </button>
+    </section>
+
+    <!-- 2. Active Game Screen -->
+    <section id="game-screen" class="game-container hidden">
+      <!-- Game HUD (Top stats bar) -->
+      <div class="game-hud">
+        <div class="hud-item speed-hud">
+          <span class="hud-label">WPM SPEED</span>
+          <span id="hud-wpm" class="hud-value glow-text">200</span>
+        </div>
+        <div class="hud-item lap-hud">
+          <span class="hud-label">CURRENT LAP</span>
+          <span id="hud-lap" class="hud-value">Lap 1</span>
+        </div>
+        <div class="hud-item score-hud active-only">
+          <span class="hud-label">SCORE</span>
+          <span id="hud-score" class="hud-value">00000</span>
+        </div>
+        <div class="hud-item combo-hud active-only">
+          <span class="hud-label">COMBO</span>
+          <span id="hud-combo" class="hud-value">x1</span>
+        </div>
+        <div class="hud-item timer-hud">
+          <span class="hud-label">LAP SECONDS</span>
+          <span id="hud-timer" class="hud-value">30s</span>
+        </div>
+      </div>
+
+      <!-- RSVP Display Container -->
+      <div class="rsvp-outer-box">
+        <div class="orp-guides">
+          <span class="guide-top"></span>
+          <span class="guide-bottom"></span>
+        </div>
+        <div id="rsvp-word-box" class="rsvp-word-box">
+          <!-- Words will be parsed and injected here dynamically -->
+          <span class="rsvp-prefix">Ready</span><span class="rsvp-focus glow-text">?</span><span class="rsvp-suffix"></span>
+        </div>
+      </div>
+
+      <!-- Dynamic Visualizer/Rhythm Lanes -->
+      <div id="rhythm-board" class="rhythm-board active-only">
+        <!-- Progress bar representing total words read -->
+        <div class="text-progress-wrapper">
+          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+
+        <div class="lanes-container">
+          <!-- Column Lanes -->
+          <div class="lane" data-lane="0">
+            <div class="lane-glow"></div>
+            <div id="lane-hit-flash-0" class="lane-hit-flash"></div>
+          </div>
+          <div class="lane" data-lane="1">
+            <div class="lane-glow"></div>
+            <div id="lane-hit-flash-1" class="lane-hit-flash"></div>
+          </div>
+          <div class="lane" data-lane="2">
+            <div class="lane-glow"></div>
+            <div id="lane-hit-flash-2" class="lane-hit-flash"></div>
+          </div>
+          
+          <!-- Falling notes will be dynamically rendered here as DOM elements -->
+          <div id="notes-container" class="notes-container"></div>
+        </div>
+
+        <!-- Target baseline hit zones -->
+        <div class="rhythm-targets">
+          <button class="target-button" data-key="a" id="btn-target-a">
+            <span class="key-label">A</span>
+            <span class="tap-label">Tap Left</span>
+          </button>
+          <button class="target-button" data-key="s" id="btn-target-s">
+            <span class="key-label">S</span>
+            <span class="tap-label">Tap Center</span>
+          </button>
+          <button class="target-button" data-key="d" id="btn-target-d">
+            <span class="key-label">D</span>
+            <span class="tap-label">Tap Right</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Game Controllers Dock -->
+      <div class="game-controls-dock">
+        <button id="btn-game-pause" class="btn btn-secondary-outline"><i class="fa-solid fa-pause"></i> Pause</button>
+        <button id="btn-game-restart" class="btn btn-secondary-outline"><i class="fa-solid fa-rotate-left"></i> Restart</button>
+        
+        <div class="volume-slider-wrapper">
+          <i class="fa-solid fa-volume-high"></i>
+          <input type="range" id="input-volume-slider" min="0" max="1" step="0.05" value="0.5" class="volume-slider">
+        </div>
+        
+        <div class="speed-tweakers">
+          <button id="btn-speed-down" class="btn btn-small" title="Decrease WPM"><i class="fa-solid fa-minus"></i> 25 WPM</button>
+          <span class="small-label">Manual Adjust</span>
+          <button id="btn-speed-up" class="btn btn-small" title="Increase WPM"><i class="fa-solid fa-plus"></i> 25 WPM</button>
+        </div>
+
+        <button id="btn-exit-game" class="btn btn-danger-outline"><i class="fa-solid fa-xmark"></i> Exit Session</button>
+      </div>
+    </section>
+
+    <!-- 3. Summary/Stats Screen -->
+    <section id="summary-screen" class="summary-card hidden">
+      <div class="success-header">
+        <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h2 class="glow-text">Session Completed!</h2>
+        <p>Excellent effort. You are training your reading comprehension and speed.</p>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Peak Speed Reached</span>
+          <span id="stat-peak-wpm" class="stat-value highlight-text">0 WPM</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Words Read</span>
+          <span id="stat-words-read" class="stat-value">0</span>
+        </div>
+        <div class="stat-card active-only">
+          <span class="stat-label">Rhythm Accuracy</span>
+          <span id="stat-accuracy" class="stat-value">0%</span>
+        </div>
+        <div class="stat-card active-only">
+          <span class="stat-label">Highest Combo Streak</span>
+          <span id="stat-combo" class="stat-value">x0</span>
+        </div>
+        <div class="stat-card active-only">
+          <span class="stat-label">Final Score</span>
+          <span id="stat-final-score" class="stat-value glow-text">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Training Duration</span>
+          <span id="stat-duration" class="stat-value">0:00</span>
+        </div>
+      </div>
+
+      <div class="summary-actions">
+        <button id="btn-play-again" class="btn btn-primary"><i class="fa-solid fa-rotate-left"></i> Play Again</button>
+        <button id="btn-share-reddit" class="btn btn-secondary"><i class="fa-brands fa-reddit-alien"></i> Copy Reddit Share Card</button>
+        <button id="btn-summary-gohome" class="btn btn-secondary-outline"><i class="fa-solid fa-house"></i> Home Screen</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- OVERLAYS & MODALS -->
+
+  <!-- 1. Subscription & Payment Modal -->
+  <div id="modal-subscription" class="modal-overlay">
+    <div class="modal-card">
+      <button class="btn-close-modal" id="btn-close-sub-modal"><i class="fa-solid fa-xmark"></i></button>
+      
+      <div class="modal-header">
+        <i class="fa-solid fa-crown highlight-text crown-icon"></i>
+        <h2>Upgrade to <span class="glow-text">Rhythm Reader Premium</span></h2>
+        <p>Unlock unlimited access, paste custom books/articles, and upload custom beats.</p>
+      </div>
+
+      <!-- Pricing Plans -->
+      <div class="pricing-container">
+        <div class="price-card" data-plan="monthly">
+          <span class="plan-badge">Standard</span>
+          <h3>Monthly Pass</h3>
+          <div class="price-value">₹59<span class="period">/month</span></div>
+          <p class="plan-desc">Perfect for quick reading tests and core accuracy training.</p>
+          <ul class="plan-features">
+            <li><i class="fa-solid fa-check"></i> Unlimited daily training matches</li>
+            <li><i class="fa-solid fa-check"></i> Paste custom text & books</li>
+            <li><i class="fa-solid fa-check"></i> Custom MP3 beat uploader</li>
+            <li><i class="fa-solid fa-check"></i> Google Account Cloud Sync</li>
+          </ul>
+          <button class="btn btn-secondary btn-block select-plan-btn" data-plan="monthly" data-price="59">Subscribe Monthly</button>
+        </div>
+
+        <div class="price-card popular" data-plan="yearly">
+          <span class="plan-badge badge-popular">Best Value</span>
+          <h3>Yearly Pass</h3>
+          <div class="price-value">₹599<span class="period">/year</span></div>
+          <p class="plan-desc">Accelerate your speed reading skills with consistent focus. Save 15%!</p>
+          <ul class="plan-features">
+            <li><i class="fa-solid fa-check"></i> Unlimited daily training matches</li>
+            <li><i class="fa-solid fa-check"></i> Paste custom text & books</li>
+            <li><i class="fa-solid fa-check"></i> Custom MP3 beat uploader</li>
+            <li><i class="fa-solid fa-check"></i> Google Account Cloud Sync</li>
+            <li><i class="fa-solid fa-check"></i> Advanced WPM analytics reports</li>
+          </ul>
+          <button class="btn btn-primary btn-block select-plan-btn" data-plan="yearly" data-price="599">Subscribe Yearly</button>
+        </div>
+      </div>
+
+      <!-- Payment Gateways Container -->
+      <div id="payment-gateways-box" class="payment-gateways-box hidden">
+        <h3 class="gateway-title">Complete Payment for <span id="checkout-plan-name" class="highlight-text">Monthly Pass</span> (₹<span id="checkout-amount">59</span>)</h3>
+        
+        <!-- Tab Switches -->
+        <div class="payment-tabs">
+          <button class="pay-tab active" data-paymethod="razorpay"><i class="fa-solid fa-wallet"></i> Razorpay (Cards/UPI)</button>
+          <button class="pay-tab" data-paymethod="paypal"><i class="fa-brands fa-paypal"></i> PayPal</button>
+          <button class="pay-tab" data-paymethod="upi"><i class="fa-solid fa-qrcode"></i> Scan UPI / Bank</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="payment-tab-content">
+          <!-- Razorpay Container -->
+          <div id="pay-content-razorpay" class="tab-pane active">
+            <p class="tab-desc">Pay securely using Cards, NetBanking, Wallets, or UPI (GPay, PhonePe, Paytm).</p>
+            <div id="razorpay-button-container" class="checkout-button-container">
+              <!-- Simulated Razorpay Button -->
+              <button id="btn-simulate-razorpay" class="btn btn-razorpay btn-block">
+                <i class="fa-solid fa-credit-card"></i> Pay via Razorpay Checkout
+              </button>
+            </div>
+          </div>
+
+          <!-- PayPal Container -->
+          <div id="pay-content-paypal" class="tab-pane">
+            <p class="tab-desc">Complete your purchase using PayPal or international Credit/Debit cards.</p>
+            <div id="paypal-button-container" class="checkout-button-container">
+              <!-- Simulated PayPal Button -->
+              <button id="btn-simulate-paypal" class="btn btn-paypal btn-block">
+                <i class="fa-brands fa-paypal"></i> Pay via PayPal
+              </button>
+            </div>
+          </div>
+
+          <!-- UPI/Bank Info Container -->
+          <div id="pay-content-upi" class="tab-pane">
+            <div class="upi-bank-grid">
+              <div class="upi-col">
+                <h4>Direct UPI Scan</h4>
+                <div class="qr-code-wrapper">
+                  <!-- Dynamic QR code will load here -->
+                  <img id="upi-qr-image" src="" alt="Scan UPI to Pay" class="upi-qr-img">
+                </div>
+                <a id="btn-upi-deeplink" href="#" class="btn btn-secondary btn-block mt-2">
+                  <i class="fa-solid fa-mobile-screen"></i> Launch UPI App
+                </a>
+              </div>
+              <div class="bank-col">
+                <h4>Bank Account Transfer</h4>
+                <div class="bank-details-card">
+                  <p><strong>Bank Name:</strong> <span id="bank-name-lbl">Loading...</span></p>
+                  <p><strong>Account Holder:</strong> <span id="bank-holder-lbl">Loading...</span></p>
+                  <p><strong>Account Number:</strong> <span id="bank-account-lbl">Loading...</span></p>
+                  <p><strong>IFSC Code:</strong> <span id="bank-ifsc-lbl">Loading...</span></p>
+                </div>
+                <div class="admin-notice mt-2">
+                  <i class="fa-solid fa-circle-info"></i> Send payment receipt screenshot to the coordinator for manual activation.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulated Sandbox checkout success -->
+        <div class="sandbox-trigger mt-3">
+          <span class="small-label">Developer Testing Mode:</span>
+          <button id="btn-sandbox-pay-success" class="btn btn-small btn-success"><i class="fa-solid fa-check-double"></i> Simulate Successful Payment (Sandbox)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Secret Admin Configuration Modal -->
+  <div id="modal-admin-panel" class="modal-overlay">
+    <div class="modal-card admin-modal-card">
+      <button class="btn-close-modal" id="btn-close-admin-modal"><i class="fa-solid fa-xmark"></i></button>
+      
+      <div class="modal-header text-left">
+        <h2><i class="fa-solid fa-sliders highlight-text"></i> Owner Admin Panel</h2>
+        <p>Configure credentials, toggle sandbox mode, and manage manual user subscriptions. Locked to: <strong>stemabacus393@gmail.com</strong></p>
+      </div>
+
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="config" id="btn-admin-tab-config">System Credentials</button>
+        <button class="admin-tab" data-tab="users" id="btn-admin-tab-users">User Subscriptions</button>
+      </div>
+
+      <div class="admin-tab-content">
+        <!-- Tab 1: System Config Credentials -->
+        <div id="admin-pane-config" class="admin-pane active">
+          <form id="form-admin-config">
+            <div class="form-row">
+              <div class="form-group col">
+                <label class="form-label">Firebase API Key</label>
+                <input type="text" id="cfg-firebase-api-key" placeholder="AIzaSy...">
+              </div>
+              <div class="form-group col">
+                <label class="form-label">Firebase Auth Domain</label>
+                <input type="text" id="cfg-firebase-auth-domain" placeholder="rhythm-reader.firebaseapp.com">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col">
+                <label class="form-label">Firebase Project ID</label>
+                <input type="text" id="cfg-firebase-project-id" placeholder="rhythm-reader">
+              </div>
+              <div class="form-group col">
+                <label class="form-label">Firebase App ID</label>
+                <input type="text" id="cfg-firebase-app-id" placeholder="1:1234:web:abcd">
+              </div>
+            </div>
+
+            <hr class="admin-divider">
+
+            <div class="form-row">
+              <div class="form-group col">
+                <label class="form-label">Razorpay Button ID (Monthly)</label>
+                <input type="text" id="cfg-razorpay-btn-monthly" placeholder="btn_H1a2b3c4d5">
+              </div>
+              <div class="form-group col">
+                <label class="form-label">Razorpay Button ID (Yearly)</label>
+                <input type="text" id="cfg-razorpay-btn-yearly" placeholder="btn_H5d4c3b2a1">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col">
+                <label class="form-label">PayPal Client ID</label>
+                <input type="text" id="cfg-paypal-client-id" placeholder="Client ID string...">
+              </div>
+              <div class="form-group col">
+                <label class="form-label">Merchant UPI ID</label>
+                <input type="text" id="cfg-upi-id" placeholder="9361409566@upi">
+              </div>
+            </div>
+
+            <hr class="admin-divider">
+            
+            <h4>Direct Bank Transfer Info</h4>
+            <div class="form-row">
+              <div class="form-group col-3">
+                <label class="form-label">Bank Name</label>
+                <input type="text" id="cfg-bank-name" placeholder="State Bank of India">
+              </div>
+              <div class="form-group col-3">
+                <label class="form-label">Account Holder Name</label>
+                <input type="text" id="cfg-bank-holder" placeholder="STEM Abacus Academy">
+              </div>
+              <div class="form-group col-3">
+                <label class="form-label">Account Number</label>
+                <input type="text" id="cfg-bank-account" placeholder="1234567890">
+              </div>
+              <div class="form-group col-3">
+                <label class="form-label">IFSC Code</label>
+                <input type="text" id="cfg-bank-ifsc" placeholder="SBIN0001234">
+              </div>
+            </div>
+
+            <div class="admin-form-actions mt-3">
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save System Config</button>
+              <button type="button" id="btn-reset-admin-config" class="btn btn-secondary-outline">Reset to Defaults</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tab 2: User Databases -->
+        <div id="admin-pane-users" class="admin-pane">
+          <div class="user-search-bar mb-3">
+            <input type="text" id="input-search-user-email" placeholder="Search user by Gmail ID...">
+            <button id="btn-search-user" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+          </div>
+
+          <div id="user-editor-box" class="user-editor-box hidden">
+            <h4>User Account Found:</h4>
+            <div class="user-card-result">
+              <p><strong>Email:</strong> <span id="lbl-result-user-email">test@gmail.com</span></p>
+              <p><strong>Name:</strong> <span id="lbl-result-user-name">Test User</span></p>
+              
+              <div class="form-group mt-3">
+                <label class="form-label">Subscription Tier</label>
+                <select id="select-user-tier">
+                  <option value="free">Free Tier</option>
+                  <option value="premium">Premium Pass</option>
+                </select>
+              </div>
+
+              <div class="form-group mt-3">
+                <label class="form-label">Subscription Expiration Date</label>
+                <input type="date" id="input-user-expire-date">
+              </div>
+
+              <button id="btn-save-user-sub" class="btn btn-success mt-3"><i class="fa-solid fa-check"></i> Update User Subscription</button>
+            </div>
+          </div>
+
+          <div id="user-search-status" class="admin-search-status">
+            <i class="fa-solid fa-circle-info"></i> Search for a user's Gmail ID to manually enable or extend their premium subscription status.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. General Settings Modal -->
+  <div id="modal-settings" class="modal-overlay">
+    <div class="modal-card settings-modal-card">
+      <button class="btn-close-modal" id="btn-close-settings-modal"><i class="fa-solid fa-xmark"></i></button>
+      
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-gear highlight-text"></i> Session Settings</h2>
+        <p>Customize font faces, focus points, and lane markers to optimize reading.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Reader Font Family</label>
+        <select id="settings-font">
+          <option value="Space Grotesk">Space Grotesk (Default Monospace Feel)</option>
+          <option value="Outfit">Outfit (Clean Sans)</option>
+          <option value="Courier New">Courier New (Slab/Code)</option>
+          <option value="Arial">Arial (Standard)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Optimal Recognition Point (ORP) Highlight Color</label>
+        <div class="color-palette-selector">
+          <button class="color-dot active" data-color="#ff007f" style="background-color: #ff007f;"></button>
+          <button class="color-dot" data-color="#00f0ff" style="background-color: #00f0ff;"></button>
+          <button class="color-dot" data-color="#bd00ff" style="background-color: #bd00ff;"></button>
+          <button class="color-dot" data-color="#d97706" style="background-color: #d97706;"></button>
+        </div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="settings-show-visualizer" checked>
+          <span>Enable pulsing background audio visualizer</span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="settings-orp-enabled" checked>
+          <span>Highlight center character (ORP)</span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="settings-pause-punctuation" checked>
+          <span>Extend pause duration on commas & periods (1.5x time)</span>
+        </label>
+      </div>
+
+      <button id="btn-save-settings" class="btn btn-primary btn-block mt-3"><i class="fa-solid fa-check"></i> Apply Settings</button>
+    </div>
+  </div>
+
+  <!-- Announcement Overlay (flashed during Lap up / WPM Speed up) -->
+  <div id="speed-up-announcement" class="announcement-overlay">
+    <div class="announcement-content">
+      <div id="ann-icon" class="ann-icon"><i class="fa-solid fa-gauge-high"></i></div>
+      <h1 id="ann-title">SPEED INCREASE!</h1>
+      <p id="ann-subtitle">Now playing at 250 WPM</p>
+    </div>
+  </div>
+
+  <!-- Firebase & App Logic scripts -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
