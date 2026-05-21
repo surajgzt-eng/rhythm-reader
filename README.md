@@ -33,7 +33,7 @@ Live demo / static build designed to run 100% free on **GitHub Pages**!
 *   **Day 2+ (Limited):** Restricted to **2 free matches per day**.
 *   **Google Sign-In (Gmail):** Integrated using Firebase Authentication. Users log in with their Google accounts to link their subscriptions to their Gmail ID.
 *   **Free Cloud Database:** Uses Firebase Firestore (Free Tier - ₹0/year) to store user credentials and subscription details.
-*   **Admin Panel:** Locked to the administrator Gmail (`stemabacus393@gmail.com`). Accessible via the settings cog. Allows the admin to search users by Gmail and manually active/extend subscription plans!
+*   **Admin Panel:** Locked to the administrator Gmail (`suraj.gzt@gmail.com`). Accessible via the settings cog. Allows the admin to search users by Gmail and manually active/extend subscription plans!
 
 ---
 
@@ -45,7 +45,7 @@ This static site uses No-Code payment checkouts to ensure security without expos
     *   Go to your Razorpay Dashboard -> **Payment Buttons** or **Subscription Buttons**.
     *   Create buttons for ₹59 (Monthly) and ₹599 (Yearly).
     *   Copy the generated Button IDs (e.g. `btn_H1a2b3c4d5`).
-    *   Log in as `stemabacus393@gmail.com` in the app, click the Admin gear, and paste your button IDs in the fields.
+    *   Log in as `suraj.gzt@gmail.com` in the app, click the Admin gear, and paste your button IDs in the fields.
 2.  **PayPal Buttons:**
     *   Go to PayPal Developer Console, get your Sandbox/Live Client ID, and paste it into the Admin settings panel.
 3.  **Direct UPI:**
@@ -57,13 +57,13 @@ This static site uses No-Code payment checkouts to ensure security without expos
 
 To publish this website online 100% free:
 
-1.  Create a new **public** repository named `rhythm-reader` on your GitHub account (`stemabacus`).
+1.  Create a new **public** repository named `rhythm-reader` on your GitHub account (`suraj-gzt`).
 2.  Run the following commands in the terminal of this folder to push the code:
     ```bash
-    git remote add origin https://github.com/stemabacus/rhythm-reader.git
+    git remote add origin https://github.com/suraj-gzt/rhythm-reader.git
     git push -u origin main
     ```
 3.  On your GitHub repository page: Go to **Settings** -> **Pages**.
 4.  Set Build/Deployment source to **Deploy from a branch**.
 5.  Select **main** branch, `/ (root)` folder, and click **Save**.
-6.  In a few minutes, your game is online at: `https://stemabacus.github.io/rhythm-reader/`!
+6.  In a few minutes, your game is online at: `https://suraj-gzt.github.io/rhythm-reader/`!

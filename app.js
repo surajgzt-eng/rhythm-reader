@@ -454,7 +454,7 @@ function applySettingsStyles() {
 // --- 4. Simulated authentication database (Google Sign-In / Firebase) ---
 function simulateGoogleLogin() {
   // Trigger a standard text prompt to gather user Gmail (for sandbox simulation)
-  const email = prompt("Enter your Gmail address to sign in:", "stemabacus393@gmail.com");
+  const email = prompt("Enter your Gmail address to sign in:", "suraj.gzt@gmail.com");
   if (!email || !email.includes('@')) {
     alert("Invalid Gmail address!");
     return;
@@ -533,8 +533,8 @@ function updateAuthUI() {
       customAudioInput.setAttribute('disabled', 'true');
     }
 
-    // Owner check: stemabacus393@gmail.com unlocks Admin Panel gear icon!
-    if (gameState.user.email.toLowerCase() === 'stemabacus393@gmail.com') {
+    // Owner check: suraj.gzt@gmail.com unlocks Admin Panel gear icon!
+    if (gameState.user.email.toLowerCase() === 'suraj.gzt@gmail.com') {
       adminToggle.classList.remove('hidden');
       loadAdminConfigUI();
     } else {
@@ -635,7 +635,7 @@ function generateUPIPayment(price, plan) {
   document.getElementById('bank-ifsc-lbl').textContent = gameState.config.bankIfsc;
 }
 
-// --- 6. Admin Panel Functions (stemabacus393@gmail.com dashboard) ---
+// --- 6. Admin Panel Functions (suraj.gzt@gmail.com dashboard) ---
 function loadAdminConfigUI() {
   document.getElementById('cfg-firebase-api-key').value = gameState.config.firebase ? gameState.config.firebase.apiKey : '';
   document.getElementById('cfg-firebase-auth-domain').value = gameState.config.firebase ? gameState.config.firebase.authDomain : '';
@@ -1415,7 +1415,7 @@ ${gameState.mode === 'active' ? `* **Rhythm Accuracy:** ${accuracy}% | **Score:*
 
 Improve your reading focus, vocabulary retention, and reading speed using falling lanes and synthesized music beats!
 
-Play it free on GitHub Pages: https://stemabacus.github.io/stem-abacus/`;
+Play it free on GitHub Pages: https://suraj-gzt.github.io/rhythm-reader/`;
 
   navigator.clipboard.writeText(shareText).then(() => {
     alert("Reddit Share Card markdown copied to clipboard! Paste it on Reddit communities like r/speedreading, r/selfimprovement, or r/indiegames.");
