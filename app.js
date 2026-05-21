@@ -55,8 +55,8 @@ const gameState = {
   synthLoopId: null,
   synthTempoBPM: 100,
   synthVolume: 0.5,
-  synthTrack: 'synthwave',
-  musicSource: 'presets',
+  synthTrack: '',
+  musicSource: 'youtube',
   youtubeSelectedVideo: null,
   lyrics: null,
   lyricsSource: null,
@@ -1117,7 +1117,7 @@ function launchGameSession() {
   // Start YouTube player
   if (gameState.musicSource === 'youtube') {
     const ytContainer = document.getElementById('yt-player-container');
-    ytContainer.classList.remove('hidden');
+    ytContainer.classList.remove('yt-hidden');
     if (gameState.ytPlayerReady && gameState.ytPlayer) {
       try {
         gameState.ytPlayer.stopVideo();
@@ -1132,7 +1132,7 @@ function launchGameSession() {
       }
     }
   } else {
-    document.getElementById('yt-player-container').classList.add('hidden');
+    document.getElementById('yt-player-container').classList.add('yt-hidden');
   }
 }
 
@@ -1301,7 +1301,7 @@ function stopSessionLoops() {
       console.warn(err);
     }
   }
-  document.getElementById('yt-player-container').classList.add('hidden');
+  document.getElementById('yt-player-container').classList.add('yt-hidden');
 }
 
 function endGameSession(completed = true) {
@@ -1435,6 +1435,8 @@ function drawVisualizerFrame() {
 
 function initYouTubeAPI() {
   window.onYouTubeIframeAPIReady = function() {
+    const originUrl = window.location.origin && window.location.origin.startsWith('http') ? window.location.origin : '';
+    
     gameState.ytPlayer = new YT.Player('youtube-player', {
       height: '100%',
       width: '100%',
@@ -1445,12 +1447,25 @@ function initYouTubeAPI() {
         rel: 0,
         disablekb: 1,
         modestbranding: 1,
-        origin: window.location.origin
+        origin: originUrl
       },
       events: {
         onReady: (event) => {
           gameState.ytPlayerReady = true;
           event.target.setVolume(gameState.synthVolume * 100);
+          // If session is already active and youtube is selected, play it now!
+          if (gameState.isActive && gameState.musicSource === 'youtube' && gameState.youtubeSelectedVideo) {
+            try {
+              event.target.stopVideo();
+              event.target.loadVideoById({
+                videoId: gameState.youtubeSelectedVideo.id,
+                suggestedQuality: 'small'
+              });
+              event.target.playVideo();
+            } catch (err) {
+              console.warn("Error starting queued YouTube video onReady:", err);
+            }
+          }
         },
         onStateChange: (event) => {
           // Keep synced if needed
@@ -1666,14 +1681,16 @@ function selectYoutubeVideo(video) {
     }
   });
 
+  // Remove active class from procedural options when YouTube video is selected
+  document.querySelectorAll('#wizard-pane-2 .wizard-option-btn[data-track]').forEach(b => {
+    if (b.dataset.track !== 'custom-search') {
+      b.classList.remove('active');
+    }
+  });
+
   if (!isPreset) {
-    document.querySelectorAll('#wizard-pane-2 .wizard-option-btn').forEach(b => {
-      if (b.dataset.track === 'custom-search') {
-        b.classList.add('active');
-      } else {
-        b.classList.remove('active');
-      }
-    });
+    const customSearchBtn = document.getElementById('btn-option-custom-search');
+    if (customSearchBtn) customSearchBtn.classList.add('active');
   } else {
     const customSearchBtn = document.getElementById('btn-option-custom-search');
     if (customSearchBtn) customSearchBtn.classList.remove('active');
@@ -1724,49 +1741,93 @@ function cleanSongTitleForLyrics(title) {
     .trim();
 }
 
+function getArtistAndTitle(videoTitle, channelName) {
+  let artist = "";
+  let track = "";
+  
+  const title = cleanSongTitleForLyrics(videoTitle);
+  
+  const splitters = [/\s+-\s+/, /\s+–\s+/, /\s+—\s+/, /\s+\|\s+/, /\s+:\s+/];
+  let parts = null;
+  for (const regex of splitters) {
+    if (regex.test(title)) {
+      parts = title.split(regex);
+      break;
+    }
+  }
+  
+  if (parts && parts.length >= 2) {
+    artist = parts[0].trim();
+    track = parts[1].trim();
+  } else {
+    artist = (channelName || "").replace(/\s*(VEVO|Official|Topic|Music)\s*/gi, "").trim();
+    track = title.trim();
+  }
+  
+  artist = artist.replace(/^['"“]+|['"”]+$/g, "").trim();
+  track = track.replace(/^['"“]+|['"”]+$/g, "").trim();
+  
+  return { artist, track };
+}
+
 async function fetchLyricsForVideo(video) {
+  const { artist, track } = getArtistAndTitle(video.title, video.channel);
   const cleanTitle = cleanSongTitleForLyrics(video.title);
-  const query = `${cleanTitle} ${video.channel || ''}`.trim();
   
   gameState.lyrics = null;
   gameState.lyricsSource = null;
-  
-  try {
-    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
-    if (!res.ok) throw new Error("Lyrics API search failed");
-    const data = await res.json();
-    
-    if (data && data.length > 0) {
-      const match = data.find(item => item.plainLyrics);
-      if (match) {
-        gameState.lyrics = match.plainLyrics;
-        gameState.lyricsSource = `${match.artistName} - ${match.trackName}`;
-        console.log("Lyrics fetched via primary query:", gameState.lyricsSource);
-        return;
-      }
-    }
-  } catch (err) {
-    console.warn("Primary lyrics search failed:", err);
+
+  const searchQueries = [];
+
+  if (artist && track) {
+    searchQueries.push({
+      url: `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`,
+      label: `artist_name="${artist}" & track_name="${track}"`
+    });
   }
-  
-  // Secondary search using only title
-  try {
-    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`);
-    if (!res.ok) throw new Error("Lyrics API secondary search failed");
-    const data = await res.json();
-    
-    if (data && data.length > 0) {
-      const match = data.find(item => item.plainLyrics);
-      if (match) {
-        gameState.lyrics = match.plainLyrics;
-        gameState.lyricsSource = `${match.artistName} - ${match.trackName}`;
-        console.log("Lyrics fetched via secondary query:", gameState.lyricsSource);
-        return;
-      }
-    }
-  } catch (err) {
-    console.warn("Secondary lyrics search failed:", err);
+
+  let combinedQuery = cleanTitle;
+  const channelNameCleaned = (video.channel || '').replace(/\s*(VEVO|Official|Topic|Music)\s*/gi, '').trim();
+  if (channelNameCleaned && !cleanTitle.toLowerCase().includes(channelNameCleaned.toLowerCase())) {
+    combinedQuery = `${cleanTitle} ${channelNameCleaned}`;
   }
+  searchQueries.push({
+    url: `https://lrclib.net/api/search?q=${encodeURIComponent(combinedQuery)}`,
+    label: `q="${combinedQuery}"`
+  });
+
+  if (artist && track) {
+    searchQueries.push({
+      url: `https://lrclib.net/api/search?artist_name=${encodeURIComponent(track)}&track_name=${encodeURIComponent(artist)}`,
+      label: `swapped artist_name="${track}" & track_name="${artist}"`
+    });
+  }
+
+  searchQueries.push({
+    url: `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle)}`,
+    label: `q="${cleanTitle}"`
+  });
+
+  for (const queryObj of searchQueries) {
+    try {
+      const res = await fetch(queryObj.url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const match = data.find(item => item.plainLyrics);
+        if (match) {
+          gameState.lyrics = match.plainLyrics;
+          gameState.lyricsSource = `${match.artistName} - ${match.trackName}`;
+          console.log(`Lyrics fetched successfully using query style: ${queryObj.label}`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn(`Query style failed: ${queryObj.label}`, err);
+    }
+  }
+
+  console.warn("All lyrics queries failed for video:", video.title);
 }
 
 async function loadTrendingYoutubeSongs() {
@@ -1788,12 +1849,6 @@ async function loadTrendingYoutubeSongs() {
 
 const defaultYoutubePresetHits = [
   {
-    id: "jfKfPfyJRdk",
-    title: "Lofi Hip Hop Radio - Beats to Relax/Study to",
-    channel: "Lofi Girl",
-    thumb: "https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg"
-  },
-  {
     id: "4NRXx6U8ABQ",
     title: "The Weeknd - Blinding Lights (Official Audio)",
     channel: "The Weeknd",
@@ -1806,16 +1861,22 @@ const defaultYoutubePresetHits = [
     thumb: "https://img.youtube.com/vi/h5DZgfMB5ig/hqdefault.jpg"
   },
   {
-    id: "4xDzrJKXOOY",
-    title: "Synthwave Radio - Chill synth / retro beats",
-    channel: "Lofi Girl Synthwave",
-    thumb: "https://img.youtube.com/vi/4xDzrJKXOOY/hqdefault.jpg"
-  },
-  {
     id: "DyDfgMOUUA8",
     title: "Billie Eilish - bad guy (Official Audio)",
     channel: "Billie Eilish",
     thumb: "https://img.youtube.com/vi/DyDfgMOUUA8/hqdefault.jpg"
+  },
+  {
+    id: "jfKfPfyJRdk",
+    title: "Lofi Hip Hop Radio - Beats to Relax/Study to",
+    channel: "Lofi Girl",
+    thumb: "https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg"
+  },
+  {
+    id: "4xDzrJKXOOY",
+    title: "Synthwave Radio - Chill synth / retro beats",
+    channel: "Lofi Girl Synthwave",
+    thumb: "https://img.youtube.com/vi/4xDzrJKXOOY/hqdefault.jpg"
   }
 ];
 
@@ -1860,4 +1921,15 @@ function renderYoutubePresetHits(songs) {
     
     container.appendChild(btn);
   });
+
+  // Auto-select the first trending song by default if no selection exists
+  if (gameState.youtubeSelectedVideo === null && songs.length > 0) {
+    const firstSong = songs[0];
+    selectYoutubeVideo({
+      id: firstSong.id,
+      title: firstSong.title,
+      channel: firstSong.channel,
+      thumb: firstSong.thumb
+    });
+  }
 }

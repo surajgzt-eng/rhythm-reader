@@ -1785,6 +1785,12 @@ input[type="text"]:focus, select:focus {
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+.yt-player-container.yt-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(100px) scale(0.8);
+}
+
 .yt-player-container.minimized {
   width: 160px;
 }
