@@ -60,6 +60,10 @@ const gameState = {
   youtubeSelectedVideo: null,
   lyrics: null,
   lyricsSource: null,
+  syncedLyrics: null,       // raw LRC string with timestamps
+  syncedWordQueue: [],       // parsed [{time, word, index}]
+  syncMode: false,           // true = timestamp sync, false = fixed WPM
+  syncPoller: null,          // requestAnimationFrame ID for sync loop
   ytPlayer: null,
   ytPlayerReady: false,
   
@@ -1005,7 +1009,7 @@ function playSynthFeedback(isSuccess) {
   osc.stop(time + 0.12);
 }
 
-// --- 10. Core Session Loop (RSVP word flash controller) ---
+/// --- 10. Core Session Loop (RSVP word flash controller) ---
 function launchGameSession() {
   if (gameState.musicSource === 'youtube' && !gameState.youtubeSelectedVideo) {
     alert("Please search and select a YouTube song first, or switch back to Built-in Beats.");
@@ -1013,49 +1017,70 @@ function launchGameSession() {
   }
 
   initAudio();
-  
-  // Read configured inputs
-  let selectedText = "";
-  let readingTitle = "";
 
-  if (gameState.musicSource === 'youtube') {
-    if (gameState.lyrics) {
-      selectedText = gameState.lyrics;
-      readingTitle = `"${gameState.youtubeSelectedVideo.title}" (Lyrics)`;
+  // Reset sync state
+  gameState.syncMode = false;
+  gameState.syncedWordQueue = [];
+  if (gameState.syncPoller) {
+    cancelAnimationFrame(gameState.syncPoller);
+    gameState.syncPoller = null;
+  }
+
+  // ── SYNC MODE: YouTube song with timestamped LRC lyrics ──────────────────
+  let readingTitle = "";
+  let selectedText = "";
+
+  if (gameState.musicSource === 'youtube' && gameState.syncedLyrics) {
+    gameState.syncMode = true;
+    gameState.syncedWordQueue = parseLrcToWordQueue(gameState.syncedLyrics);
+    readingTitle = `\u266b ${gameState.youtubeSelectedVideo.title}`;
+    if (gameState.syncedWordQueue.length === 0) {
+      // LRC parse failed — fall back to WPM mode with plain lyrics
+      console.warn("LRC parse returned empty queue, falling back to WPM mode.");
+      gameState.syncMode = false;
+    }
+  }
+
+  // ── WPM MODE: plain lyrics / presets ────────────────────────────────────
+  if (!gameState.syncMode) {
+    if (gameState.musicSource === 'youtube') {
+      if (gameState.lyrics) {
+        selectedText = gameState.lyrics;
+        readingTitle = `"${gameState.youtubeSelectedVideo.title}" (Lyrics)`;
+      } else {
+        const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
+        const customTextArea = document.getElementById('textarea-custom-text');
+        if (presetBtn && presetBtn.dataset.preset === 'custom') {
+          selectedText = customTextArea.value.trim() || textPresets.scifi;
+          readingTitle = `Custom Text (Lyrics not found for "${gameState.youtubeSelectedVideo.title}")`;
+        } else if (presetBtn) {
+          selectedText = textPresets[presetBtn.dataset.preset];
+          readingTitle = `${presetBtn.querySelector('strong')?.textContent || 'Preset'} (Lyrics not found)`;
+        } else {
+          selectedText = textPresets.scifi;
+          readingTitle = `Sci-Fi (Lyrics not found)`;
+        }
+      }
     } else {
-      // Fallback
       const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
       const customTextArea = document.getElementById('textarea-custom-text');
       if (presetBtn && presetBtn.dataset.preset === 'custom') {
         selectedText = customTextArea.value.trim() || textPresets.scifi;
-        readingTitle = `Custom Text (Lyrics not found for "${gameState.youtubeSelectedVideo.title}")`;
+        readingTitle = `Custom Text`;
       } else if (presetBtn) {
         selectedText = textPresets[presetBtn.dataset.preset];
-        readingTitle = `${presetBtn.querySelector('strong')?.textContent || 'Preset'} (Lyrics not found)`;
+        readingTitle = presetBtn.querySelector('strong')?.textContent || 'Preset';
       } else {
         selectedText = textPresets.scifi;
-        readingTitle = `Sci-Fi (Lyrics not found)`;
+        readingTitle = `Sci-Fi Story`;
       }
+      // Add procedural track context
+      const activeTrackBtn = document.querySelector('#wizard-pane-2 .wizard-option-btn.active');
+      const trackName = activeTrackBtn ? (activeTrackBtn.querySelector('strong')?.textContent || 'Procedural Beats') : 'Procedural Beats';
+      readingTitle = `${readingTitle} (${trackName})`;
     }
-  } else {
-    const presetBtn = document.querySelector('.wizard-option-btn[data-preset].active');
-    const customTextArea = document.getElementById('textarea-custom-text');
-    if (presetBtn && presetBtn.dataset.preset === 'custom') {
-      selectedText = customTextArea.value.trim() || textPresets.scifi;
-      readingTitle = `Custom Text`;
-    } else if (presetBtn) {
-      selectedText = textPresets[presetBtn.dataset.preset];
-      readingTitle = presetBtn.querySelector('strong')?.textContent || 'Preset';
-    } else {
-      selectedText = textPresets.scifi;
-      readingTitle = `Sci-Fi Story`;
-    }
-    
-    // Add procedural track context
-    const activeTrackBtn = document.querySelector('#wizard-pane-2 .wizard-option-btn.active');
-    const trackName = activeTrackBtn ? (activeTrackBtn.querySelector('strong')?.textContent || 'Procedural Beats') : 'Procedural Beats';
-    readingTitle = `${readingTitle} (${trackName})`;
   }
+
 
   // Update Game Reading Title UI
   const readingTitleEl = document.getElementById('game-reading-title');
@@ -1063,11 +1088,13 @@ function launchGameSession() {
     readingTitleEl.textContent = readingTitle;
   }
 
-  // Parse text
-  parseTextToWords(selectedText);
-  if (gameState.words.length === 0) {
-    alert("Empty text material!");
-    return;
+  // In WPM mode, parse selected text to word objects
+  if (!gameState.syncMode) {
+    parseTextToWords(selectedText);
+    if (gameState.words.length === 0) {
+      alert("Empty text material!");
+      return;
+    }
   }
 
   // Setup initial counters
@@ -1087,34 +1114,27 @@ function launchGameSession() {
   // Setup speeds
   const initialWpm = parseInt(document.getElementById('input-wpm-slider').value);
   gameState.wpm = initialWpm;
-  gameState.synthTempoBPM = Math.min(180, Math.max(80, Math.floor(initialWpm / 2))); // BPM proportional to WPM speed
+  gameState.synthTempoBPM = Math.min(180, Math.max(80, Math.floor(initialWpm / 2)));
 
   // Setup UI visibility
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('game-screen').classList.remove('hidden');
 
-  // Update HUD
-  document.getElementById('hud-wpm').textContent = gameState.wpm;
-  document.getElementById('hud-lap').textContent = `Lap ${gameState.lap}`;
-  document.getElementById('hud-timer').textContent = `${gameState.lapTimer}s`;
+  // Update HUD — sync mode shows different labels
+  const totalWordCount = gameState.syncMode ? gameState.syncedWordQueue.length : gameState.words.length;
+  document.getElementById('hud-wpm').textContent = gameState.syncMode ? '\u266b SYNC' : gameState.wpm;
+  document.getElementById('hud-lap').textContent = gameState.syncMode ? '\uD83C\uDFB5 Live' : `Lap ${gameState.lap}`;
+  document.getElementById('hud-timer').textContent = gameState.syncMode ? '0:00' : `${gameState.lapTimer}s`;
   document.getElementById('progress-bar-fill').style.width = '0%';
-  document.getElementById('hud-word-counter').textContent = `Word 0 / ${gameState.words.length}`;
+  document.getElementById('hud-word-counter').textContent = `Word 0 / ${totalWordCount}`;
 
   gameState.startTime = Date.now();
-  
-  // Launch loops
-  if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
-    if (gameState.customAudio) {
-      gameState.customAudio.currentTime = 0;
-      gameState.customAudio.play();
-    }
-  } else {
-    startSynthLoop();
-  }
-  startTimers();
-  triggerRsvpWordFlash();
 
-  // Start YouTube player
+  // Launch audio loops
+  startSynthLoop(); // handles visualizer pulses (muted automatically in YouTube mode)
+  startTimers();    // handles elapsedTime tracking (lap boosts disabled in syncMode)
+
+  // Start YouTube player or preset synth
   if (gameState.musicSource === 'youtube') {
     const ytContainer = document.getElementById('yt-player-container');
     ytContainer.classList.remove('yt-hidden');
@@ -1127,26 +1147,41 @@ function launchGameSession() {
         });
         gameState.ytPlayer.setVolume(gameState.synthVolume * 100);
         gameState.ytPlayer.playVideo();
+        // In SYNC MODE: startSyncLoop() will be triggered by onStateChange -> PLAYING (state 1)
+        // In WPM MODE: start word flash immediately
+        if (!gameState.syncMode) {
+          triggerRsvpWordFlash();
+        }
       } catch (err) {
         console.warn("Error starting YouTube video:", err);
+        if (!gameState.syncMode) triggerRsvpWordFlash();
       }
+    } else {
+      // YT player not ready yet — onReady will handle play; start WPM loop if applicable
+      if (!gameState.syncMode) triggerRsvpWordFlash();
     }
   } else {
     document.getElementById('yt-player-container').classList.add('yt-hidden');
+    triggerRsvpWordFlash(); // WPM mode with procedural synth
   }
 }
+
 
 function startTimers() {
   gameState.timerInterval = setInterval(() => {
     if (!gameState.isActive) return;
     
     gameState.elapsedTime++;
-    gameState.lapTimer--;
-    document.getElementById('hud-timer').textContent = `${gameState.lapTimer}s`;
 
-    // Lap Completion speed boost
-    if (gameState.lapTimer <= 0) {
-      triggerLapSpeedBoost();
+    // Only run lap countdown and speed boosts in WPM mode
+    // In sync mode, the HUD timer is updated directly by the sync loop
+    if (!gameState.syncMode) {
+      gameState.lapTimer--;
+      document.getElementById('hud-timer').textContent = `${gameState.lapTimer}s`;
+
+      if (gameState.lapTimer <= 0) {
+        triggerLapSpeedBoost();
+      }
     }
   }, 1000);
 }
@@ -1225,6 +1260,141 @@ function triggerRsvpWordFlash() {
   gameState.rsvpTimeout = setTimeout(triggerRsvpWordFlash, nextWordDelay);
 }
 
+// --- LRC Parser: Convert timestamped lyrics to a flat per-word queue ---
+function parseLrcToWordQueue(lrcText) {
+  const lines = lrcText.split('\n');
+  const parsedLines = [];
+
+  for (const line of lines) {
+    // Match [mm:ss.xx] or [mm:ss] timestamp at start of line
+    const match = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\](.*)/);
+    if (!match) continue;
+
+    const minutes = parseInt(match[1]);
+    const seconds = parseFloat(match[2]);
+    const text = match[3].trim();
+
+    // Skip empty lines and metadata like [ar:Artist]
+    if (isNaN(minutes) || isNaN(seconds) || !text) continue;
+
+    const timeInSeconds = minutes * 60 + seconds;
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+
+    if (words.length > 0) {
+      parsedLines.push({ time: timeInSeconds, words });
+    }
+  }
+
+  // Sort by time (should already be in order, but be safe)
+  parsedLines.sort((a, b) => a.time - b.time);
+
+  // Build flat word queue — distribute each line's duration across its words
+  const wordQueue = [];
+  for (let i = 0; i < parsedLines.length; i++) {
+    const line = parsedLines[i];
+    const nextLineTime = (i + 1 < parsedLines.length) ? parsedLines[i + 1].time : line.time + 4.0;
+    const lineDuration = Math.max(0.5, nextLineTime - line.time);
+    const wordInterval = lineDuration / line.words.length;
+
+    line.words.forEach((word, wi) => {
+      wordQueue.push({
+        time: line.time + wi * wordInterval,
+        word: word,
+        index: wordQueue.length
+      });
+    });
+  }
+
+  console.log(`Parsed ${parsedLines.length} LRC lines into ${wordQueue.length} words`);
+  return wordQueue;
+}
+
+// --- Sync Mode Loop: polls YouTube currentTime via requestAnimationFrame (~60fps) ---
+function startSyncLoop() {
+  // Cancel any stale poller first
+  if (gameState.syncPoller) {
+    cancelAnimationFrame(gameState.syncPoller);
+    gameState.syncPoller = null;
+  }
+
+  function syncTick() {
+    if (!gameState.isActive || !gameState.syncMode) return;
+
+    // Get current playback time from YouTube player
+    let currentTime = 0;
+    try {
+      if (gameState.ytPlayerReady && gameState.ytPlayer) {
+        currentTime = gameState.ytPlayer.getCurrentTime() || 0;
+      }
+    } catch (e) {
+      // Player not ready yet — keep polling
+      gameState.syncPoller = requestAnimationFrame(syncTick);
+      return;
+    }
+
+    const queue = gameState.syncedWordQueue;
+
+    // Show all words whose timestamp has arrived
+    while (
+      gameState.currentWordIndex < queue.length &&
+      currentTime >= queue[gameState.currentWordIndex].time
+    ) {
+      displaySyncWord(queue[gameState.currentWordIndex].word);
+      gameState.totalWordsRead++;
+      gameState.currentWordIndex++;
+    }
+
+    // Update progress bar and word counter
+    if (queue.length > 0) {
+      const pct = (gameState.currentWordIndex / queue.length) * 100;
+      document.getElementById('progress-bar-fill').style.width = `${pct}%`;
+      document.getElementById('hud-word-counter').textContent =
+        `Word ${gameState.currentWordIndex} / ${queue.length}`;
+    }
+
+    // Update HUD timer to show current song position (mm:ss)
+    const min = Math.floor(currentTime / 60);
+    const sec = Math.floor(currentTime % 60);
+    document.getElementById('hud-timer').textContent = `${min}:${String(sec).padStart(2, '0')}`;
+
+    // If all words have been shown, stop polling (YouTube end event handles session close)
+    if (gameState.currentWordIndex >= queue.length && queue.length > 0) {
+      gameState.syncPoller = null;
+      return;
+    }
+
+    gameState.syncPoller = requestAnimationFrame(syncTick);
+  }
+
+  gameState.syncPoller = requestAnimationFrame(syncTick);
+}
+
+// --- Display a word in the RSVP box with ORP highlighting ---
+function displaySyncWord(wordStr) {
+  const rsvpBox = document.getElementById('rsvp-word-box');
+  const orpEnabled = document.getElementById('settings-orp-enabled').checked;
+
+  // Calculate ORP index on the clean word (without punctuation)
+  const cleanWord = wordStr.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?\"'']/g, '');
+  let orpIndex = 0;
+  if (cleanWord.length > 1) {
+    if (cleanWord.length <= 5) orpIndex = 1;
+    else if (cleanWord.length <= 9) orpIndex = 2;
+    else orpIndex = 3;
+  }
+
+  const prefix = wordStr.substring(0, orpIndex);
+  const focus = wordStr.charAt(orpIndex);
+  const suffix = wordStr.substring(orpIndex + 1);
+
+  if (orpEnabled && focus !== '') {
+    rsvpBox.innerHTML = `<span class="rsvp-prefix">${prefix}</span><span class="rsvp-focus">${focus}</span><span class="rsvp-suffix">${suffix}</span>`;
+  } else {
+    rsvpBox.innerHTML = `<span class="rsvp-prefix"></span><span class="rsvp-focus">${wordStr}</span><span class="rsvp-suffix"></span>`;
+  }
+}
+
+
 function togglePauseGame() {
   const pauseBtn = document.getElementById('btn-game-pause');
   
@@ -1233,6 +1403,12 @@ function togglePauseGame() {
     gameState.isActive = false;
     pauseBtn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
     
+    // Stop sync loop if running
+    if (gameState.syncPoller) {
+      cancelAnimationFrame(gameState.syncPoller);
+      gameState.syncPoller = null;
+    }
+
     if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
       if (gameState.customAudio) gameState.customAudio.pause();
     } else {
@@ -1257,15 +1433,20 @@ function togglePauseGame() {
       startSynthLoop();
     }
     
-    triggerRsvpWordFlash();
-
     if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
       try {
         gameState.ytPlayer.playVideo();
+        // In sync mode: startSyncLoop() will be re-triggered by onStateChange -> PLAYING
       } catch (err) {
         console.warn(err);
       }
     }
+
+    // In WPM mode, restart the word flash loop
+    if (!gameState.syncMode) {
+      triggerRsvpWordFlash();
+    }
+    // In sync mode, the YouTube onStateChange handler will restart startSyncLoop()
   }
 }
 
@@ -1285,6 +1466,13 @@ function exitSession() {
 
 function stopSessionLoops() {
   gameState.isActive = false;
+
+  // Stop sync loop if running
+  if (gameState.syncPoller) {
+    cancelAnimationFrame(gameState.syncPoller);
+    gameState.syncPoller = null;
+  }
+
   if (gameState.customAudio) {
     gameState.customAudio.pause();
     gameState.customAudio.currentTime = 0;
@@ -1468,7 +1656,28 @@ function initYouTubeAPI() {
           }
         },
         onStateChange: (event) => {
-          // Keep synced if needed
+          // YT.PlayerState: ENDED=0, PLAYING=1, PAUSED=2, BUFFERING=3
+          if (event.data === 1) {
+            // Song started or resumed playing
+            if (gameState.isActive && gameState.syncMode && !gameState.syncPoller) {
+              startSyncLoop();
+            }
+          } else if (event.data === 0) {
+            // Song ended naturally
+            if (gameState.syncPoller) {
+              cancelAnimationFrame(gameState.syncPoller);
+              gameState.syncPoller = null;
+            }
+            if (gameState.isActive && gameState.syncMode) {
+              setTimeout(() => endGameSession(true), 1500);
+            }
+          } else if (event.data === 2) {
+            // Song paused externally
+            if (gameState.syncPoller) {
+              cancelAnimationFrame(gameState.syncPoller);
+              gameState.syncPoller = null;
+            }
+          }
         }
       }
     });
@@ -1703,12 +1912,15 @@ function selectYoutubeVideo(video) {
   
   fetchLyricsForVideo(video).then(() => {
     if (lyricsStatus) {
-      if (gameState.lyrics) {
+      if (gameState.syncedLyrics) {
         lyricsStatus.style.color = '#10b981'; // Green
-        lyricsStatus.innerHTML = `<i class="fa-solid fa-circle-check"></i> Lyrics synchronized & loaded!`;
-      } else {
+        lyricsStatus.innerHTML = `<i class="fa-solid fa-music"></i> Synced! Words will match the song perfectly.`;
+      } else if (gameState.lyrics) {
         lyricsStatus.style.color = '#f59e0b'; // Amber
-        lyricsStatus.innerHTML = `<i class="fa-solid fa-circle-info"></i> Lyrics not found. Defaulting to selected text.`;
+        lyricsStatus.innerHTML = `<i class="fa-solid fa-circle-info"></i> Plain lyrics only — won't perfectly sync to song.`;
+      } else {
+        lyricsStatus.style.color = '#ef4444'; // Red
+        lyricsStatus.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Lyrics not found. Using preset reading text.`;
       }
     }
   });
@@ -1775,6 +1987,7 @@ async function fetchLyricsForVideo(video) {
   const cleanTitle = cleanSongTitleForLyrics(video.title);
   
   gameState.lyrics = null;
+  gameState.syncedLyrics = null;
   gameState.lyricsSource = null;
 
   const searchQueries = [];
@@ -1814,11 +2027,15 @@ async function fetchLyricsForVideo(video) {
       if (!res.ok) continue;
       const data = await res.json();
       if (data && data.length > 0) {
-        const match = data.find(item => item.plainLyrics);
+        // Prefer synced lyrics (timestamped LRC) for perfect audio sync; fall back to plain
+        const syncedMatch = data.find(item => item.syncedLyrics);
+        const plainMatch = data.find(item => item.plainLyrics);
+        const match = syncedMatch || plainMatch;
         if (match) {
-          gameState.lyrics = match.plainLyrics;
+          gameState.syncedLyrics = match.syncedLyrics || null;
+          gameState.lyrics = match.plainLyrics || null;
           gameState.lyricsSource = `${match.artistName} - ${match.trackName}`;
-          console.log(`Lyrics fetched successfully using query style: ${queryObj.label}`);
+          console.log(`Lyrics fetched via: ${queryObj.label} | Synced timestamps: ${!!match.syncedLyrics}`);
           return;
         }
       }
