@@ -1,7 +1,7 @@
 // Rhythm Reader - Curated Offline Library
 // This library provides 100% reliable, pre-synced "Missions" that run perfectly offline.
 
-const curatedLibrary = [
+export const curatedLibrary = [
   {
     id: "mission-01",
     title: "Mission 1: The Awakening",
@@ -100,9 +100,9 @@ Welcome to the foundational layer of the universe.`
 ];
 
 // Helper to mathematically sync text to a BPM track
-function generateSyncedWordQueue(mission, targetWpm) {
+export function generateSyncedWordQueue(mission, targetWpm) {
   const queue = [];
-  const words = mission.text.split(/\\s+/).filter(w => w.trim().length > 0);
+  const words = mission.text.split(/\s+/).filter(w => w.trim().length > 0);
   
   // Example calculation: 
   // If targetWpm is 200, each word takes (60/200) = 0.3 seconds.

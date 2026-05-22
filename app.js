@@ -2,6 +2,8 @@
    Rhythm Reader - Core Game Loop & Application Controller
    ========================================================================== */
 
+import { curatedLibrary, generateSyncedWordQueue } from './library.js';
+
 // --- 1. Global State Management ---
 const gameState = {
   // Configs & Credentials (with default placeholders)
