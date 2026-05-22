@@ -1048,39 +1048,48 @@ function startSynthLoop() {
     gameState.audioCtx.resume();
   }
 
-  let beatCount = 0;
-  const intervalTime = (60 / gameState.synthTempoBPM) * 1000; // time in ms per beat
+  const durationInSeconds = gameState.syncedWordQueue.length > 0 
+    ? gameState.syncedWordQueue[gameState.syncedWordQueue.length - 1].end + 4.0 
+    : 180; // 3 mins fallback
+
+  const beatTime = 60 / gameState.synthTempoBPM;
+  const totalSteps = Math.ceil(durationInSeconds / beatTime) * 16; 
   
-  // Procedural synthesizer loops
-  gameState.synthLoopId = setInterval(() => {
-    if (!gameState.isActive) return;
-    
-    // Play synthetic beat track
-    playProceduralTrackBeat(beatCount);
-    beatCount = (beatCount + 1) % 16; // 16-step grid
-  }, intervalTime);
+  // Start scheduling slightly in the future to avoid clipping
+  const startTime = gameState.audioCtx.currentTime + 0.1;
+  gameState.sessionStartAudioTime = startTime;
+  gameState.activeOscillators = [];
+  gameState.lastVizBeat = -1;
+
+  // Look-ahead scheduling
+  for (let step = 0; step < totalSteps; step++) {
+    const scheduleTime = startTime + (step * (beatTime / 4)); // 16th notes
+    playProceduralTrackBeat(step, scheduleTime);
+  }
 }
 
 function stopSynthLoop() {
-  if (gameState.synthLoopId) {
-    clearInterval(gameState.synthLoopId);
-    gameState.synthLoopId = null;
+  if (gameState.activeOscillators) {
+    gameState.activeOscillators.forEach(osc => {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch (err) {
+        // Ignore if already stopped
+      }
+    });
+    gameState.activeOscillators = [];
   }
 }
 
 // Generates procedural Synthwave or LoFi drums & synth notes
-function playProceduralTrackBeat(step) {
+function playProceduralTrackBeat(step, time) {
   const ctx = gameState.audioCtx;
   const volume = gameState.synthVolume;
   if (!ctx || volume <= 0) return;
 
-  const time = ctx.currentTime;
-  
-  // Equalizer viz triggers
-  triggerVisualizerPulse();
-
   if (gameState.musicSource === 'youtube') {
-    return; // Mute procedural synthesis, run visualizer pulses only
+    return; // Mute procedural synthesis
   }
 
   // 1. Kick Drum (Step 0, 4, 8, 12)
@@ -1099,6 +1108,7 @@ function playProceduralTrackBeat(step) {
     
     osc.start(time);
     osc.stop(time + 0.3);
+    gameState.activeOscillators.push(osc);
   }
 
   // 2. Snare Drum (Step 4, 12)
@@ -1129,6 +1139,7 @@ function playProceduralTrackBeat(step) {
     
     noise.start(time);
     noise.stop(time + 0.15);
+    gameState.activeOscillators.push(noise);
   }
 
   // 3. Hi-hats (every odd step)
@@ -1146,6 +1157,7 @@ function playProceduralTrackBeat(step) {
     
     osc.start(time);
     osc.stop(time + 0.05);
+    gameState.activeOscillators.push(osc);
   }
 
   // 4. Bassline / Chords (Arpeggiation)
@@ -1171,6 +1183,7 @@ function playProceduralTrackBeat(step) {
 
   synthOsc.start(time);
   synthOsc.stop(time + 0.4);
+  gameState.activeOscillators.push(synthOsc);
 }
 
 // Perfect/Good hit sound chirp
@@ -1427,24 +1440,33 @@ function parseLrcToWordQueue(lrcText) {
   return wordQueue;
 }
 
-// --- Sync Mode Loop: polls YouTube currentTime via requestAnimationFrame (~60fps) ---
+// --- Sync Mode Loop: polls Web Audio currentTime via requestAnimationFrame (~60fps) ---
 function startSyncLoop() {
   if (gameState.syncPoller) {
     cancelAnimationFrame(gameState.syncPoller);
     gameState.syncPoller = null;
   }
 
-  gameState.localTimeBase = performance.now();
-
   function syncTick() {
     if (!gameState.isActive || !gameState.syncMode) return;
 
-    const now = performance.now();
-    let estimatedTime = (now - gameState.localTimeBase) / 1000;
+    // Use Web Audio API currentTime as the ultimate source of truth
+    const audioTime = gameState.audioCtx ? gameState.audioCtx.currentTime : (performance.now() / 1000);
+    const sessionStart = gameState.sessionStartAudioTime || 0;
+    
+    let estimatedTime = audioTime - sessionStart;
 
     // Apply manual lyrics offset and the global +215ms fix
     const GLOBAL_SYNC_OFFSET_MS = 0.215;
     const adjustedTime = estimatedTime - gameState.lyricsOffset - GLOBAL_SYNC_OFFSET_MS;
+
+    // Trigger visualizer pulse on beats
+    const beatTime = 60 / gameState.synthTempoBPM;
+    const currentBeat = Math.floor(estimatedTime / beatTime);
+    if (currentBeat > gameState.lastVizBeat && gameState.musicSource !== 'youtube') {
+      gameState.lastVizBeat = currentBeat;
+      triggerVisualizerPulse();
+    }
 
     const queue = gameState.syncedWordQueue;
 
@@ -1522,7 +1544,6 @@ function displaySyncWord(wordStr) {
   }
 }
 
-
 function togglePauseGame() {
   const pauseBtn = document.getElementById('btn-game-pause');
   
@@ -1540,7 +1561,7 @@ function togglePauseGame() {
     if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
       if (gameState.customAudio) gameState.customAudio.pause();
     } else {
-      stopSynthLoop();
+      if (gameState.audioCtx) gameState.audioCtx.suspend();
     }
 
     if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
@@ -1558,7 +1579,8 @@ function togglePauseGame() {
     if (gameState.musicSource === 'presets' && gameState.synthTrack === 'custom') {
       if (gameState.customAudio) gameState.customAudio.play();
     } else {
-      startSynthLoop();
+      if (gameState.audioCtx) gameState.audioCtx.resume();
+      if (gameState.syncMode) startSyncLoop();
     }
     
     if (gameState.musicSource === 'youtube' && gameState.ytPlayerReady && gameState.ytPlayer) {
